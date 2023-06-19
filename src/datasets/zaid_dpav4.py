@@ -2,9 +2,9 @@ import os
 import numpy as np
 
 import resources
-import datasets
+from datasets.common import DatasetBase
 
-class DPAv4_Zaid(datasets.DatasetBase):
+class DPAv4_Zaid(DatasetBase):
     def __init__(self, train=True, resource_path=None, **kwargs):
         if resource_path is None:
             from resources import zaid
@@ -28,3 +28,5 @@ class DPAv4_Zaid(datasets.DatasetBase):
         self.name = 'DPAv4_ZaidSubset'
         
         super().__init__(train=train, **kwargs)
+
+AVAILABLE_DATASETS = [DPAv4_Zaid]

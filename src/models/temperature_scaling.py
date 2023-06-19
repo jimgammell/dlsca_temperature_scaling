@@ -7,7 +7,7 @@ from torch import nn, optim
 class ModelWithTemperature(nn.Module):
     def __init__(self, model):
         super().__init__()
-        self.model = model
+        self.base_model = model
         self.temperature = nn.Parameter(torch.ones(1)*1.5)
         self.name = self.model.name
     
@@ -17,10 +17,15 @@ class ModelWithTemperature(nn.Module):
         return logits / temperature
     
     def forward(self, x, dont_rescale_temperature=False):
-        logits = self.model(x)
-        if not(self.model.training) and not(dont_rescale_temperature):
+        logits = self.base_model(x)
+        if not(self.base_model.training) and not(dont_rescale_temperature):
             logits = self.temperature_scale(logits)
         return logits
+    
+    def extra_repr(self):
+        return self.base_model.extra_repr() + '\nUsing temperature rescaling with T={}'.format(
+            nn.functional.softplus(self.temperature).item()
+        )
 
 class ECELoss(nn.Module): # expected calibration error
     def __init__(self, n_bins=15):

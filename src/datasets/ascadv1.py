@@ -3,9 +3,9 @@ import h5py
 import numpy as np
 
 import resources
-import datasets
+from datasets.common import DatasetBase
 
-class ASCADv1(datasets.DatasetBase):
+class ASCADv1(DatasetBase):
     def __init__(self, desync=0, variable=False, train=True, resource_path=None, **kwargs):
         if resource_path is None:
             if variable:
@@ -29,3 +29,5 @@ class ASCADv1(datasets.DatasetBase):
         self.name = 'ASCADv1%s_Desync%d'%('Variable' if variable else 'Fixed', desync)
         
         super().__init__(train=train, **kwargs)
+
+AVAILABLE_DATASETS = [ASCADv1]

@@ -6,7 +6,7 @@ import zipfile
 import numpy as np
 
 # folders in which downloaded resources will be stored
-DOWNLOADS = os.path.join('.', 'downloads')
+DOWNLOADS = os.path.join('..', 'downloads')
 RAW = os.path.join(DOWNLOADS, 'compressed')
 
 def download(url_list, subdir, force=False, chunk_size=2**20):

@@ -1,7 +1,11 @@
+from multiprocessing import cpu_count
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
+import config
+
+TOTAL_DATALOADER_WORKERS = 3*cpu_count()//4
 AES_SBOX = np.array([
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
             0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -120,3 +124,14 @@ class DatasetBase(Dataset):
             s += ', target_transform={}'.format(self.target_transform)
         s += ')'
         return s
+    
+def unpack_batch(batch, device):
+    x, y = batch
+    x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+    return x, y
+
+def get_dataloader(dataset, batch_size=32):
+    return torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, 
+        num_workers=TOTAL_DATALOADER_WORKERS//config.get_num_agents()
+    )
