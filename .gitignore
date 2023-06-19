@@ -1,1 +1,4 @@
 downloads
+figures
+*.pyc
+*/__pycache__
