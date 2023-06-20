@@ -3,9 +3,13 @@ import torch
 from torch import nn
 
 # Converts a numpy float array trace to a PyTorch tensor
-class ToTensor(nn.Module):
+class ToFloatTensor(nn.Module):
     def forward(self, x):
         return torch.tensor(x, dtype=torch.float)
+
+class ToLongTensor(nn.Module):
+    def forward(self, x):
+        return torch.tensor(x, dtype=torch.long)
 
 # Converts a numpy integer array label to a PyTorch label vector in one-hot form
 class ToOneHot(nn.Module):

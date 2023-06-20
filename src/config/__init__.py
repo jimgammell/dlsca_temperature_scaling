@@ -6,6 +6,21 @@ NUM_AGENTS = 1
 CONFIG_DIR = os.path.join('..', 'config_files')
 TRAIN_CONFIGS = os.path.join(CONFIG_DIR, 'train')
 HTUNE_CONFIGS = os.path.join(CONFIG_DIR, 'htune')
+RESULTS_BASE_DIR = os.path.join('..', 'results')
+LOG_FILES = {}
+
+def specify_log_file(path):
+    LOG_FILES[os.getpid()] = path
+    with open(path, 'w') as _:
+        pass
+
+def printl(*args, **kwargs):
+    assert not('file' in kwargs.keys())
+    if not os.getpid() in LOG_FILES.keys():
+        print(*args, **kwargs)
+    else:
+        with open(LOG_FILES[os.getpid()], 'a') as F:
+            print(*args, file=F, **kwargs)
 
 # Specify the number of trials to run in parallel on this machine.
 def set_num_agents(val):
@@ -19,18 +34,16 @@ def get_num_agents():
 # List the configuration files found in the config directory. Directory depends on whether the config files specify a single run or
 #   a WandB hyperparameter sweep.
 def get_available_configs(train=True):
-    if train:
-        return os.listdir(TRAIN_CONFIGS)
-    else:
-        return os.listdir(HTUNE_CONFIGS)
+    base_dir = TRAIN_CONFIGS if train else HTUNE_CONFIGS
+    return [x.split('.')[0] for x in os.listdir(base_dir) if x.split('.')[-1] == 'json']
 
 # Load the dictionary encoded by the specified configuration file.
 def load_config(config, train=True):
-    if config.split('.')[-1] != 'json':
-        config = config + '.json'
     available_configs = get_available_configs(train=train)
     if not config in available_configs:
-        raise Exception('Invalid config argument. Valid options: [{}]'.format(',\n\t'.join(available_configs)))
+        raise Exception('Invalid config argument. Valid options: [\n{}\n]'.format(',\n\t'.join(available_configs)))
+    if config.split('.')[-1] != 'json':
+        config = config + '.json'
     with open(os.path.join(CONFIG_DIR, TRAIN_CONFIGS if train else HTUNE_CONFIGS, config), 'r') as F:
         settings = json.load(F)
     return settings

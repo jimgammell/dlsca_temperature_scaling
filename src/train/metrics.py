@@ -68,10 +68,10 @@ def get_rank(logits, labels):
 def get_norms(model):
     total_weight_norm, total_grad_norm = 0.0, 0.0
     for param in model.parameters():
-        weight_norm = param.detach().data.norm(2)
+        weight_norm = param.detach().data.norm(2).item()
         total_weight_norm += weight_norm**2
         if param.requires_grad and (param.grad is not None):
-            grad_norm = param.grad.detach().data.norm(2)
+            grad_norm = param.grad.detach().data.norm(2).item()
             total_grad_norm += grad_norm**2
     total_weight_norm = np.sqrt(total_weight_norm)
     total_grad_norm = np.sqrt(total_grad_norm)

@@ -98,8 +98,6 @@ class DatasetBase(Dataset):
     def __getitem__(self, idx):
         data = self.data[idx]
         target = self.targets[idx]
-        data = torch.tensor(data, dtype=torch.float)
-        target = torch.tensor(target, dtype=torch.long)
         if self.transform is not None:
             data = self.transform(data)
         if self.target_transform is not None:
@@ -130,7 +128,7 @@ def unpack_batch(batch, device):
     x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
     return x, y
 
-def get_dataloader(dataset, batch_size=32):
+def get_dataloader(dataset, batch_size=32, shuffle=False):
     return torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, 
         num_workers=TOTAL_DATALOADER_WORKERS//config.get_num_agents()

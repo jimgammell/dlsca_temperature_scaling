@@ -16,7 +16,9 @@ class FeatureExtractorBlock(nn.Module):
                 in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=1, padding=kernel_size//2
             )
         self.act = nn.SELU()
-        self.norm = nn.BatchNorm1d(num_features=out_channels)
+        self.norm = nn.BatchNorm1d(
+            num_features=out_channels, eps=1e-3, momentum=0.9 # Keras default settings
+        )
         self.pool = nn.AvgPool1d(kernel_size=pool_size, stride=pool_size)
         
     def forward(self, x):

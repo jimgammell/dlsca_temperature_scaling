@@ -2,3 +2,5 @@ downloads
 figures
 *.pyc
 */__pycache__
+.ipynb_checkpoints
+results

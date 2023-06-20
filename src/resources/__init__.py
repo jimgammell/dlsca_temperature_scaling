@@ -3,6 +3,7 @@ import shutil
 import requests
 from tqdm import tqdm
 import zipfile
+import importlib
 import numpy as np
 
 # folders in which downloaded resources will be stored
@@ -55,5 +56,11 @@ def move(subdir):
         if not file.split('.')[-1] == 'zip':
             os.makedirs(os.path.join(DOWNLOADS, subdir), exist_ok=True)
             os.rename(os.path.join(base_dir, file), os.path.join(DOWNLOADS, subdir, file))
+
+def download_all():
+    for mod in os.listdir(os.path.dirname(__file__)):
+        if (mod == '__init__.py') or (mod.split('.')[-1] != 'py'):
+            continue
+        importlib.import_module('.'+mod.split('.')[0], 'resources')
 
 os.makedirs(DOWNLOADS, exist_ok=True)

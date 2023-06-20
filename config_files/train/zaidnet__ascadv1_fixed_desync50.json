@@ -1,0 +1,52 @@
+{
+    "save_dir": "train__zaidnet__ascadv1_fixed_ds50",
+    "dataset_name": "ASCADv1",
+    "dataset_kwargs": {
+        "desync": 50,
+        "variable": false
+    },
+    "model_name": "ZaidNet__ASCAD_Desync50",
+    "optimizer_class": "Adam",
+    "optimizer_kwargs": {
+        "eps": 1e-7
+    },
+    "criterion_class": "CrossEntropyLoss",
+    "use_sam": false,
+    "lr_scheduler_class": "OneCycleLR",
+    "lr_scheduler_kwargs": {
+        "max_lr": 5e-3,
+        "three_phase": true,
+        "pct_start": 0.4,
+        "div_factor": 1e1,
+        "final_div_factor": 1e3,
+        "cycle_momentum": false,
+        "anneal_strategy": "linear"
+    },
+    "rescale_temperature": false,
+    "precise_bn_stats": true,
+    "train_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "train_target_transforms": [
+        "ToLongTensor"
+    ],
+    "eval_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "total_epochs": 50,
+    "batch_size": 256,
+    "val_split_prop": 0.1,
+    "training_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "eval_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "selection_metric": "rank",
+    "maximize_selection_metric": false
+}

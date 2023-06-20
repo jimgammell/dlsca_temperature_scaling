@@ -1,0 +1,63 @@
+{
+    "save_dir": "htune__mlp_mixer__ascadv1_variable_ds50",
+    "dataset_name": "ASCADv1",
+    "dataset_kwargs": {
+        "desync": 50,
+        "variable": true
+    },
+    "model_name": "MLPMixer",
+    "model_kwargs": {
+        "patch_length": 50,
+        "dims": 256,
+        "spatial_hidden_dims": 256,
+        "channel_hidden_dims": 512,
+        "depth": 8,
+        "dropout": 0.0
+    },
+    "optimizer_class": "AdamW",
+    "criterion_class": "CrossEntropyLoss",
+    "use_sam": true,
+    "sam_kwargs": {
+        "adaptive": true,
+        "rho": 0.5
+    },
+    "lr_scheduler_class": "OneCycleLR",
+    "lr_scheduler_kwargs": {
+        "pct_start": 0.05,
+        "anneal_strategy": "cos",
+        "cycle_momentum": false,
+        "div_factor": 1e-6,
+        "final_div_factor": 1e0
+    },
+    "rescale_temperature": true,
+    "precise_bn_stats": true,
+    "train_sample_transforms": [
+        "ToFloatTensor",
+        "RandomCrop"
+    ],
+    "train_target_transforms": [
+        "ToOneHot",
+        "LabelSmoothing"
+    ],
+    "train_batch_transforms": [],
+    "eval_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "total_epochs": 100,
+    "batch_size": 256,
+    "val_split_prop": 0.2,
+    "training_metrics": {
+        "accuracy": "get_acc",
+        "cos_sim": "get_cosine_similarity",
+        "rank": "get_rank"
+    },
+    "eval_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "selection_metric": "loss",
+    "maximize_selection_metric": false
+}
