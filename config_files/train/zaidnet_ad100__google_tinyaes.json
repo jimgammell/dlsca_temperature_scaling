@@ -1,0 +1,47 @@
+{
+    "save_dir": "zaidnet_ad100__google_tinyaes",
+    "dataset_name": "GoogleTinyAES",
+    "dataset_kwargs": {
+        "target_byte": 0,
+        "interval_to_use": [0, 20000],
+        "downsample_ratio": 4,
+        "target_attack_point": "sub_bytes_in"
+    },
+    "model_name": "BigZaidNet",
+    "optimizer_class": "Adam",
+    "criterion_class": "CrossEntropyLoss",
+    "use_sam": false,
+    "lr_scheduler_class": "OneCycleLR",
+    "lr_scheduler_kwargs": {
+        "max_lr": 5e-3,
+        "cycle_momentum": false,
+        "pct_start": 0.05
+    },
+    "rescale_temperature": false,
+    "precise_bn_stats": false,
+    "train_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "train_target_transforms": [
+        "ToLongTensor"
+    ],
+    "eval_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "total_epochs": 50,
+    "batch_size": 64,
+    "val_split_prop": 0.1,
+    "training_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "eval_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "selection_metric": "rank",
+    "maximize_selection_metric": false
+}

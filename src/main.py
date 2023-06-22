@@ -10,13 +10,13 @@ from torch import multiprocessing
 import config
 from config import printl as print
 import resources
-from train.classifier import ClassifierTrainer
+from train.classifier import ClassifierTrainer, generate_figs
 
 def test():
     from models import test as models_test
     models_test()
     
-def training_run(settings, device='cpu'):
+def training_run(settings, device='cpu', generate_figs=False):
     if hasattr(device, '__getitem__'):
         device = device[0]
     save_dir = os.path.join(config.RESULTS_BASE_DIR, settings['save_dir'])
@@ -37,6 +37,8 @@ def training_run(settings, device='cpu'):
         json.dump(settings, F, indent=2)
     trainer = ClassifierTrainer(using_wandb=False, **settings)
     trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+    if generate_figs:
+        generate_figs(save_dir)
 
 def spawn_agent_(sweep_id, project, device, classifier_settings):
     wandb.agent(sweep_id, project=project, function=lambda: run_wandb_trial_(device, classifier_settings))
@@ -129,6 +131,12 @@ def main():
         '--devices', default=None, nargs='+', choices=['cpu', *['cuda:%d'%(dev_idx) for dev_idx in range(torch.cuda.device_count())]],
         help='Devices to use for this trial.'
     )
+    parser.add_argument(
+        '--cudnn-benchmark', default=False, action='store_true', help='Enables cudNN autotuner to search for an efficient algorithm for convolutions.'
+    )
+    parser.add_argument(
+        '--generate-figs', default=False, action='store_true', help='Save figures to the trial/figures directory after each trial is completed.'
+    )
     args = parser.parse_args()
     
     if args.test:
@@ -137,6 +145,8 @@ def main():
     if args.download_resources:
         print('Downloading resources ...')
         resources.download_all()
+    if args.cudnn_benchmark:
+        torch.backends.cudnn.benchmark = True
     if args.devices is None:
         args.devices = 'cuda:0' if torch.cuda.is_available() else 'cpu'
     if args.sweep_id is not None:
@@ -148,8 +158,9 @@ def main():
             settings['save_dir'] = args.save_dir
         print('Settings:')
         print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
-        training_run(settings, device=args.devices)
+        training_run(settings, device=args.devices, generate_figs=args.generate_figs)
     for config_name in args.htune:
+        multiprocessing.set_start_method('spawn')
         print('Executing hyperparameter tuning run defined in {} ...'.format(os.path.join(config.HTUNE_CONFIGS, config_name)))
         settings = config.load_config(config_name, train=False)
         if args.save_dir is not None:
@@ -159,5 +170,4 @@ def main():
         htune_run(settings, trials_per_gpu=args.trials_per_gpu, devices=args.devices)
 
 if __name__ == '__main__':
-    multiprocessing.set_start_method('spawn')
     main()

@@ -1,0 +1,34 @@
+{
+    "save_dir": "htune__zaidnet_big__toy_aes",
+    "dataset_name": "GoogleTinyAES",
+    "model_name": "BigZaidNet",
+    "optimizer_class": "Adam",
+    "criterion_class": "CrossEntropyLoss",
+    "use_sam": false,
+    "rescale_temperature": false,
+    "precise_bn_stats": false,
+    "lr_scheduler_class": "OneCycleLR",
+    "lr_scheduler_kwargs": {
+        "pct_start": 0.05,
+        "cycle_momentum": false
+    },
+    "train_sample_transforms": ["ToFloatTensor"],
+    "train_target_transforms": ["ToLongTensor"],
+    "eval_sample_transforms": ["ToFloatTensor"],
+    "eval_target_transforms": ["ToLongTensor"],
+    "total_epochs": 50,
+    "batch_size": 64,
+    "val_split_prop": 0.1,
+    "training_metrics": {"accuracy": "get_acc", "rank": "get_rank"},
+    "eval_metrics": {"accuracy": "get_acc", "rank": "get_rank"},
+    "selection_metric": "acc",
+    "maximize_selection_metric": true,
+    "wandb_config": {
+        "method": "random",
+        "name": "zaidnet_big",
+        "parameters": {
+            "scheduler_kwargs": {"max_lr": {"distribution": "log_uniform_values", "min": 1e-4, "max": 1e-2}},
+            "pooling_method": {"values": ["aa_sconv", "aa_maxpool", "aa", "avgpool", "none"]}
+        }
+    }
+}

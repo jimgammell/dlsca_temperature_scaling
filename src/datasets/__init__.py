@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 
-from datasets import ascadv1, zaid_dpav4
+from datasets import ascadv1, zaid_dpav4, google_tinyaes
 
 AVAILABLE_DATASETS = sum([
-    ascadv1.AVAILABLE_DATASETS, zaid_dpav4.AVAILABLE_DATASETS
+    ascadv1.AVAILABLE_DATASETS, zaid_dpav4.AVAILABLE_DATASETS, google_tinyaes.AVAILABLE_DATASETS
 ], start=[])
 
 def construct_dataset(dataset_name, **dataset_kwargs):

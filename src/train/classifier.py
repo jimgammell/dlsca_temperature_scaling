@@ -3,6 +3,7 @@ import random
 import time
 from copy import copy
 import pickle
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 from torch import nn, optim
@@ -36,6 +37,8 @@ class ClassifierTrainer:
         selection_metric=None, maximize_selection_metric=False, # Which metric to use to find the best model.
         **kwargs
     ):
+        if len(kwargs) > 0:
+            print('Warning: unused kwargs with names \'{}\''.format('\', \''.join(list(kwargs.keys()))))
         # Save the arguments for future reference
         for var_name, var in locals().items():
             setattr(self, var_name, var)
@@ -146,15 +149,15 @@ class ClassifierTrainer:
             nonlocal rv
             logits = self.model(traces) # Do the forward pass
             loss = self.criterion(logits, labels) # Compute the training loss for this pass
+            loss.backward() # Do the backward pass
             if update_rv:
                 rv['loss'] = loss.item() # Convert loss to standard Python number -- saving/returning PyTorch tensors causes issues
                 for metric_name, metric_fn in self.training_metrics.items(): # Compute additional metrics
-                    rv[metric_name] = metric_fn(logits, labels)
+                    rv[metric_name] = metric_fn(logits.detach(), labels)
                 norms = train.metrics.get_norms(self.model) # Compute model parameter weight/gradient norms for debugging
                 rv.update(norms)
-            loss.backward() # Do the backward pass
             return loss # This is needed by the optimizer
-        self.optimizer.zero_grad() # Reset the gradient buffer before the forwards/backwards pass
+        self.optimizer.zero_grad(set_to_none=True) # Reset the gradient buffer before the forwards/backwards pass
         _ = closure(update_rv=True) # Do the first forwards and backwards pass
         if self.use_sam: # Do the optimizer step, which will entail more forwards/backwards passes for e.g. SAM
             self.optimizer.step(closure)
@@ -302,3 +305,46 @@ class ClassifierTrainer:
                             **{'best_test_%s'%(key): val for key, val in test_erv.items()}
                         })
         
+def generate_figs(trial_dir):
+    # Load results into memory
+    results_dir = os.path.join(trial_dir, 'results')
+    epochs = []
+    collected_results = {'train': [], 'val': [], 'test': []}
+    for filename in os.listdir(results_dir):
+        epoch = int(filename.split('_')[-1].split('.')[0])
+        epochs.append(epoch)
+        with open(os.path.join(results_dir, filename), 'rb') as F:
+            results = pickle.load(F)
+        for phase, phase_results in results.items():
+            for metric_name, metric_sample in phase_results.items():
+                if not metric_name in collected_results[phase].keys():
+                    collected_results[phase][metric_name] = []
+                collected_results[phase][metric_name].append(metric_sample)
+    epochs = np.array(epochs)
+    sorted_indices = np.argsort(epochs)
+    epochs = epochs[sorted_indices]
+    for phase, phase_results in collected_results.items():
+        for metric_name, metric_trace in phase_results.items():
+            collected_results[phase][metric_name] = np.array(metric_trace)[sorted_indices]
+    
+    # Plot results
+    num_metrics = len(collected_results['train'])
+    assert num_metrics == len(collected_results['val']) == len(collected_results['test'])
+    rows = int(np.sqrt(num_metrics))
+    cols = int(np.ceil(num_metrics))
+    (fig, axes) = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))
+    for phase in ['train', 'val']:
+        for ax, (metric_name, metric_trace) in zip(axes.flatten(), collected_results[phase].items()):
+            ax.plot(
+                epochs, metric_trace,
+                color='blue', linestyle={'train': '--', 'val': '-'}[phase], label='{}_{}'.format(phase, metric_name)
+            )
+            if ax.get_ylabel() != 'metric_name':
+                ax.set_ylabel(metric_name)
+    for ax in axes.flatten():
+        ax.set_xlabel('Epochs')
+        ax.legend()
+        ax.grid(True)
+        
+    # Save results
+    fig.savefig(os.path.join(trial_dir, 'figures', 'collected_results.pdf'))

@@ -1,11 +1,16 @@
+import os
+import importlib
 import torch
 from torch import nn
 
-from models import zaidnet, woutersnet, prouffnet, mlp_mixer
-
-AVAILABLE_MODELS = sum([
-    woutersnet.AVAILABLE_MODELS, zaidnet.AVAILABLE_MODELS, prouffnet.AVAILABLE_MODELS, mlp_mixer.AVAILABLE_MODELS
-], start=[])
+AVAILABLE_MODELS = []
+for mod_name in os.listdir(os.path.join(os.path.dirname(__file__), 'classifiers')):
+    if not mod_name.split('.')[-1] == 'py':
+        continue
+    mod = importlib.import_module('.'+mod_name.split('.')[0], 'models.classifiers')
+    if not hasattr(mod, 'AVAILABLE_MODELS'):
+        continue
+    AVAILABLE_MODELS += mod.AVAILABLE_MODELS
 
 def construct_model(model_name, **model_kwargs):
     model_classes = [m for m in AVAILABLE_MODELS if m.__name__ == model_name]

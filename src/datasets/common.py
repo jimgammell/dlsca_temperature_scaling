@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 import config
 
-TOTAL_DATALOADER_WORKERS = 3*cpu_count()//4
+TOTAL_DATALOADER_WORKERS = 4*torch.cuda.device_count()
 AES_SBOX = np.array([
             0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
             0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0, 0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
@@ -30,81 +30,61 @@ VALID_PREPROCESSING = [
     'normalize_traces_centered', 'normalize_features_01', 'normalize_traces_01'
 ]
 
-def center_data(data):
-    data_max = np.max(data)
-    data_min = np.min(data)
-    data = data - (0.5*data_max + 0.5*data_min)
-    return data
-def standardize_features(data):
-    feature_means = np.mean(data, axis=0, keepdims=True)
-    feature_stds = np.std(data, axis=0, keepdims=True)
-    data = (data - feature_means) / feature_stds
-    return data
-def standardize_traces(data):
-    data_mean = np.mean(data)
-    data_std = np.std(data)
-    data = (data - data_mean) / data_std
-    return data
-def normalize_features_centered(data):
-    feature_max = np.max(data, axis=0, keepdims=True)
-    feature_min = np.min(data, axis=0, keepdims=True)
-    data = 2*(data - (0.5*feature_max + 0.5*feature_min)) / (feature_max - feature_min)
-    return data
-def normalize_traces_centered(data):
-    data_max = np.max(data)
-    data_min = np.min(data)
-    data = 2*(data - (0.5*data_max + 0.5*data_min)) / (data_max - data_min)
-    return data
-def normalize_features_01(data):
-    features_max = np.max(data, axis=0, keepdims=True)
-    features_min = np.min(data, axis=0, keepdims=True)
-    data = (data - data_min) / (data_max - data_min)
-    return data
-def normalize_traces_01(data):
-    data_max = np.max(data)
-    data_min = np.min(data)
-    data = (data - data_min) / (data_max - data_min)
-    return data
+def center_data(data, mean=0.0):
+    return data - mean
+def standardize_data(data, mean=0.0, stdev=1.0):
+    return (data - mean) / stdev
+def normalize_data(data, min=-1.0, max=1.0):
+    return 2 * (data - (0.5*max + 0.5*min)) / (max - min)
+def normalize_data_01(data, min=-1.0, max=1.0):
+    return (data - min) / (max - min)
 
 class DatasetBase(Dataset):
-    def __init__(self, transform=None, target_transform=None, train=True, preprocessing='none'):
+    def __init__(self, transform=None, target_transform=None, train=True):
         super().__init__()
-        
-        assert preprocessing in VALID_PREPROCESSING
         
         self.transform = transform
         self.target_transform = target_transform
         self.train = train
-        self.preprocessing = preprocessing
-        preprocess_fn = {
-            'none': lambda x: x,
-            'centered': center_data,
-            'standardize_features': standardize_features,
-            'standardize_traces': standardize_traces,
-            'normalize_features_centered': normalize_features_centered,
-            'normalize_traces_centered': normalize_traces_centered,
-            'normalize_features_01': normalize_features_01,
-            'normalize_traces_01': normalize_traces_01
-        }[preprocessing]
-        assert hasattr(self, 'data') and hasattr(self, 'targets')
-        assert len(self.data) == len(self.targets)
+        if hasattr(self, 'data'):
+            self.length = len(self.data)
+            self.data_shape = self.data.shape[1:]
+            assert hasattr(self, 'targets')
+            assert self.length == len(self.targets)
+            self.data_mean = np.mean(self.data)
+            self.data_stdev = np.std(self.data)
+        else:
+            assert hasattr(self, 'length')
+            self.data_shape = self.load_idx(0)[0].shape
+            if not hasattr(self, 'data_mean'):
+                self.data_mean = np.mean([np.mean(self.load_idx(idx)[0]) for idx in range(self.length)])
+            if not hasattr(self, 'data_stdev'):
+                self.data_stdev = np.sqrt(np.mean([np.std(self.load_idx(idx)[0])**2 for idx in range(self.length)]))
         if hasattr(self, 'metadata'):
-            assert all(len(self.data) == len(val) for val in self.metadata.values())
-        self.data = preprocess_fn(self.data)
-        self.data_shape = self.data.shape[1:]
-        self.length = len(self.data)
+            assert all(self.length == len(val) for val in self.metadata.values())
         self.return_metadata = False
         
-    def __getitem__(self, idx):
+    def load_idx(self, idx):
         data = self.data[idx]
         target = self.targets[idx]
+        if not self.return_metadata:
+            return data, target
+        else:
+            assert hasattr(self, 'metadata')
+            metadata = {key: val[idx] for key, val in self.metadata.items()}
+            return data, target, metadata
+        
+    def __getitem__(self, idx):
+        if self.return_metadata:
+            data, target, metadata = self.load_idx(idx)
+        else:
+            data, target = self.load_idx(idx)
+        data = (data - self.data_mean) / self.data_stdev
         if self.transform is not None:
             data = self.transform(data)
         if self.target_transform is not None:
             target = self.target_transform(target)
         if self.return_metadata:
-            assert hasattr(self, 'metadata')
-            metadata = {key: val[idx] for key, val in self.metadata.items()}
             return data, target, metadata
         else:
             return data, target
@@ -114,8 +94,6 @@ class DatasetBase(Dataset):
     
     def __repr__(self):
         s = '{}(length={}, data_shape={}, train={}'.format(self.name, self.length, self.data_shape, self.train)
-        if self.preprocessing != 'none':
-            s += ', preprocessing={}'.format(self.preprocessing)
         if self.transform is not None:
             s += ', transform={}'.format(self.transform)
         if self.target_transform is not None:
