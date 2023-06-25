@@ -88,14 +88,26 @@ class DatasetBase(Dataset):
             s += ', target_transform={}'.format(self.target_transform)
         s += ')'
         return s
+
+class DataLoader(torch.utils.data.DataLoader):
+    def __init__(self, dataset, batch_size=32, shuffle=False):
+        super().__init__(
+            dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True,
+            num_workers=TOTAL_DATALOADER_WORKERS//config.get_num_agents()
+        )
+        self.print_kwargs = {
+            'batch_size': batch_size,
+            'shuffle': shuffle,
+            'num_workers': self.num_workers,
+            'pin_memory': True
+        }
+        
+    def __repr__(self):
+        return self.__class__.__name__ + '({})'.format(
+            ', '.join(['{}={}'.format(key, val) for key, val in self.print_kwargs.items()])
+        )
     
 def unpack_batch(batch, device):
     x, y = batch
     x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
     return x, y
-
-def get_dataloader(dataset, batch_size=32, shuffle=False):
-    return torch.utils.data.DataLoader(
-        dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True, 
-        num_workers=TOTAL_DATALOADER_WORKERS//config.get_num_agents()
-    )

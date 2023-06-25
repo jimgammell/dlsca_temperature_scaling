@@ -104,9 +104,9 @@ class ClassifierTrainer:
         self.val_dataset.dataset.target_transform = self.eval_target_transform
         self.test_dataset.transform = self.eval_sample_transform
         self.test_dataset.target_transform = self.eval_target_transform
-        self.train_dataloader = datasets.common.get_dataloader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
-        self.val_dataloader = datasets.common.get_dataloader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
-        self.test_dataloader = datasets.common.get_dataloader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        self.train_dataloader = datasets.common.DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        self.val_dataloader = datasets.common.DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+        self.test_dataloader = datasets.common.DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
         self.model = models.construct_model(self.model_name, input_shape=self.train_dataset.dataset.data_shape, **self.model_kwargs)
         if not hasattr(self.model, 'input_shape'):
             model.input_shape = self.train_dataset.data_shape

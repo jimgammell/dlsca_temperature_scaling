@@ -24,7 +24,7 @@
     "train_sample_transforms": [
         "ToFloatTensor",
         ["Standardize", {"mean": -0.2571, "stdev": 0.1296}],
-        "AddGaussianNoise"
+        ["AddGaussianNoise", {"noise_stdev": 0.1}]
     ],
     "train_target_transforms": [
         "ToLongTensor",
@@ -40,9 +40,9 @@
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "total_epochs": 50,
+    "total_epochs": 100,
     "batch_size": 64,
-    "val_split_prop": 0.1,
+    "val_split_prop": 0.2,
     "training_metrics": {
         "accuracy": "get_acc",
         "rank": "get_rank"
