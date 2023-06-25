@@ -59,31 +59,33 @@ class FEBlock(VerboseModule):
         
         if pooling_method == 'aa_sconv':
             self.conv = nn.Sequential(
-                BlurPool(in_channels, filt_size=kernel_size, stride=5),
-                nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=kernel_size//2)
+                BlurPool(in_channels, filt_size=kernel_size, stride=2),
+                nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, stride=2, padding=kernel_size//2)
             )
         else:
             self.conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=kernel_size//2)
-        self.selu = nn.SELU()
+        self.selu = nn.ReLU(inplace=True) #nn.SELU()
         self.bn = nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.9)
         if pooling_method == 'aa_maxpool':
             self.pool = nn.Sequential(
-                nn.MaxPool1d(5, stride=1),
-                BlurPool(out_channels, filt_size=kernel_size, stride=5)
+                nn.MaxPool1d(4, stride=1),
+                BlurPool(out_channels, filt_size=kernel_size, stride=4)
             )
         elif pooling_method == 'aa':
-            self.pool = BlurPool(out_channels, filt_size=kernel_size, stride=5)
+            self.pool = BlurPool(out_channels, filt_size=kernel_size, stride=4)
         elif pooling_method == 'avgpool':
-            self.pool = nn.AvgPool1d(5)
+            self.pool = nn.AvgPool1d(4)
         elif pooling_method == 'none':
             self.pool = nn.Identity()
+        elif pooling_method == 'aa_sconv':
+            pass
         else:
             assert False
         
     def forward(self, x):
         x = self.conv(x)
-        x = self.selu(x)
         x = self.bn(x)
+        x = self.selu(x)
         if hasattr(self, 'pool'):
             x = self.pool(x)
         return x
@@ -102,6 +104,30 @@ class MLPBlock(VerboseModule):
             x = self.selu(x)
         return x
 
+class Stem(VerboseModule):
+    def __init__(self, in_channels, out_channels, kernel_size=11):
+        super().__init__()
+        
+        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, stride=2, padding=kernel_size//2)
+        self.pool = BlurPool(out_channels, filt_size=kernel_size, stride=2)
+        
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.pool(x)
+        return x
+
+class GlobalAveragePooling(VerboseModule):
+    def __init__(self):
+        super().__init__()
+        
+        self.pool = nn.AdaptiveAvgPool1d(1)
+        self.flatten = nn.Flatten()
+    
+    def forward(self, x):
+        x = self.pool(x)
+        x = self.flatten(x)
+        return x
+    
 class BigZaidNet(VerboseModule):
     def __init__(
         self,
@@ -113,22 +139,22 @@ class BigZaidNet(VerboseModule):
     ):
         super().__init__()
         
-        initial_channels = mlp_dims // 2**(fe_blocks-1)
+        initial_channels = mlp_dims // 2**(fe_blocks)
+        self.stem = Stem(input_shape[0], initial_channels, kernel_size=11)
         self.feature_extractor = nn.Sequential(
-            FEBlock(input_shape[0], initial_channels, 11, pooling_method='none'),
-            *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11, pooling_method=pooling_method)
-              for n in range(fe_blocks-1)]
+            *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11, pooling_method='none' if n==0 else pooling_method)
+              for n in range(fe_blocks)]
         )
-        self.global_average_pooling = nn.Sequential(
-            nn.AdaptiveAvgPool1d(1),
-            nn.Flatten()
-        )
+        self.global_average_pooling = GlobalAveragePooling()
         self.multilayer_perceptron = nn.Sequential(
             *[MLPBlock(mlp_dims, mlp_dims) for _ in range(mlp_blocks-1)],
             MLPBlock(mlp_dims, 256, use_act=False)
         )
         
+        self.save_input_shape(input_shape)
+        
     def forward(self, x):
+        x = self.stem(x)
         x = self.feature_extractor(x)
         x = self.global_average_pooling(x)
         x = self.multilayer_perceptron(x)

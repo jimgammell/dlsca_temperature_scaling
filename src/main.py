@@ -16,7 +16,7 @@ def test():
     from models import test as models_test
     models_test()
     
-def training_run(settings, device='cpu', generate_figs=False):
+def training_run(settings, device='cpu', generate_figs=False, time_objects=False):
     if hasattr(device, '__getitem__'):
         device = device[0]
     save_dir = os.path.join(config.RESULTS_BASE_DIR, settings['save_dir'])
@@ -36,7 +36,9 @@ def training_run(settings, device='cpu', generate_figs=False):
     with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
         json.dump(settings, F, indent=2)
     trainer = ClassifierTrainer(using_wandb=False, **settings)
-    trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+    trainer.train_model(
+        settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir, time_objects=time_objects
+    )
     if generate_figs:
         generate_figs(save_dir)
 
@@ -132,6 +134,9 @@ def main():
         help='Devices to use for this trial.'
     )
     parser.add_argument(
+        '--time-objects', default=False, action='store_true', help='Record time taken for model forward/backward pass and dataloader traversal before start of trial.'
+    )
+    parser.add_argument(
         '--cudnn-benchmark', default=False, action='store_true', help='Enables cudNN autotuner to search for an efficient algorithm for convolutions.'
     )
     parser.add_argument(
@@ -158,7 +163,7 @@ def main():
             settings['save_dir'] = args.save_dir
         print('Settings:')
         print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
-        training_run(settings, device=args.devices, generate_figs=args.generate_figs)
+        training_run(settings, device=args.devices, generate_figs=args.generate_figs, time_objects=args.time_objects)
     for config_name in args.htune:
         multiprocessing.set_start_method('spawn')
         print('Executing hyperparameter tuning run defined in {} ...'.format(os.path.join(config.HTUNE_CONFIGS, config_name)))
@@ -167,7 +172,7 @@ def main():
             settings['save_dir'] = args.save_dir
         print('Settings:')
         print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
-        htune_run(settings, trials_per_gpu=args.trials_per_gpu, devices=args.devices)
+        htune_run(settings, trials_per_gpu=args.trials_per_gpu, devices=args.devices, time_objects=args.time_objects)
 
 if __name__ == '__main__':
     main()

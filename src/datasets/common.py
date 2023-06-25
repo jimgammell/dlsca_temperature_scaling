@@ -46,23 +46,12 @@ class DatasetBase(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.train = train
-        if hasattr(self, 'data'):
-            self.length = len(self.data)
-            self.data_shape = self.data.shape[1:]
-            assert hasattr(self, 'targets')
-            assert self.length == len(self.targets)
-            self.data_mean = np.mean(self.data)
-            self.data_stdev = np.std(self.data)
-        else:
-            assert hasattr(self, 'length')
-            self.data_shape = self.load_idx(0)[0].shape
-            if not hasattr(self, 'data_mean'):
-                self.data_mean = np.mean([np.mean(self.load_idx(idx)[0]) for idx in range(self.length)])
-            if not hasattr(self, 'data_stdev'):
-                self.data_stdev = np.sqrt(np.mean([np.std(self.load_idx(idx)[0])**2 for idx in range(self.length)]))
-        if hasattr(self, 'metadata'):
-            assert all(self.length == len(val) for val in self.metadata.values())
+        self.length = len(self.data)
+        assert hasattr(self, 'targets')
+        assert self.length == len(self.targets)
         self.return_metadata = False
+        eg_data, _ = self.__getitem__(0)
+        self.data_shape = eg_data.shape
         
     def load_idx(self, idx):
         data = self.data[idx]
@@ -79,7 +68,6 @@ class DatasetBase(Dataset):
             data, target, metadata = self.load_idx(idx)
         else:
             data, target = self.load_idx(idx)
-        data = (data - self.data_mean) / self.data_stdev
         if self.transform is not None:
             data = self.transform(data)
         if self.target_transform is not None:

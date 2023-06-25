@@ -2,13 +2,14 @@ import copy
 import numpy as np
 import torch
 from torch import nn
-import tensorflow as tf
-from tensorflow import keras
 
 import resources
 
 class PretrainedKerasModel(nn.Module):
     def __init__(self, model_path, device):
+        import tensorflow as tf
+        from tensorflow import keras
+        
         super().__init__()
         
         # convert device identifier from PyTorch to TensorFlow format

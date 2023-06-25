@@ -11,7 +11,7 @@ from torchvision.transforms import Compose
 
 import config
 from config import printl as print
-import train, train.common
+import train, train.common, train.time_objects
 import datasets, datasets.common, datasets.transforms
 import models, models.common
 
@@ -59,7 +59,11 @@ class ClassifierTrainer:
         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
                         self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms]:
             assert isinstance(tf_list, list)
-            assert all(hasattr(datasets.transforms, tf) for tf in tf_list)
+            assert all(
+                hasattr(datasets.transforms, tf) if isinstance(tf, str)
+                else hasattr(datasets.transforms, tf[0])
+                for tf in tf_list
+            )
         assert (self.seed is None) or isinstance(self.seed, int)
         assert self.device in [None, 'cpu', 'cuda', *['cuda:%d'%(dev_idx) for dev_idx in range(torch.cuda.device_count())]]
         assert isinstance(self.batch_size, int) and (self.batch_size > 0)
@@ -88,12 +92,12 @@ class ClassifierTrainer:
         )
         self.val_dataset.dataset = copy(self.val_dataset.dataset)
         self.test_dataset = datasets.construct_dataset(self.dataset_name, train=False, **self.dataset_kwargs)
-        self.train_sample_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.train_sample_transforms])
-        self.train_target_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.train_target_transforms])
-        self.train_batch_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.train_batch_transforms])
-        self.eval_sample_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.eval_sample_transforms])
-        self.eval_target_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.eval_target_transforms])
-        self.eval_batch_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.eval_batch_transforms])
+        self.train_sample_transform = construct_transform(self.train_sample_transforms)
+        self.train_target_transform = construct_transform(self.train_target_transforms)
+        self.train_batch_transform = construct_transform(self.train_batch_transforms)
+        self.eval_sample_transform = construct_transform(self.eval_sample_transforms)
+        self.eval_target_transform = construct_transform(self.eval_target_transforms)
+        self.eval_batch_transform = construct_transform(self.eval_batch_transforms)
         self.train_dataset.dataset.transform = self.train_sample_transform
         self.train_dataset.dataset.target_transform = self.train_target_transform
         self.val_dataset.dataset.transform = self.eval_sample_transform
@@ -104,6 +108,8 @@ class ClassifierTrainer:
         self.val_dataloader = datasets.common.get_dataloader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
         self.test_dataloader = datasets.common.get_dataloader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
         self.model = models.construct_model(self.model_name, input_shape=self.train_dataset.dataset.data_shape, **self.model_kwargs)
+        if not hasattr(self.model, 'input_shape'):
+            model.input_shape = self.train_dataset.data_shape
         self.model = self.model.to(self.device)
         if self.rescale_temperature:
             self.model = models.temperature_scaling(self.model)
@@ -229,6 +235,7 @@ class ClassifierTrainer:
     def train_model(
         self,
         epochs, # Number of epochs the model will be trained for
+        time_objects=False,
         starting_checkpoint=None, # Path to checkpoint to use as starting point.
         results_save_dir=None, # Directory in which to save the metrics recorded during training
         model_save_dir=None # Directory in which to save model checkpoints and/or best model found
@@ -241,16 +248,45 @@ class ClassifierTrainer:
             print('Model save directory: {}'.format(model_save_dir))
         print('Model:')
         print(self.model)
-        print('Train/val/test datasets: {} / {} / {}'.format(self.train_dataset, self.val_dataset, self.test_dataset))
+        print('Train dataset: {}'.format(self.train_dataset.dataset))
+        print('Test dataset: {}'.format(self.test_dataset))
+        print('Train/val lengths: {} / {}'.format(len(self.train_dataset), len(self.val_dataset)))
         print('Train/val/test dataloaders: {} / {} / {}'.format(self.train_dataloader, self.val_dataloader, self.test_dataloader))
         print('Optimizer: {}'.format(self.optimizer))
         print('Criterion: {}'.format(self.criterion))
         print('Learning rate scheduler: {}'.format(self.lr_scheduler))
         print('Device: {}'.format(self.device))
         print('Seed: {}'.format(self.seed))
+        if self.using_wandb:
+            wandb.summary.update({'param_count': sum(p.numel() for p in self.model.parameters() if p.requires_grad)})
+        
+        if time_objects:
+            print('\nTesting model forward/backward pass and dataloader iterate times ...')
+            forward_pass_time = train.time_objects.time_model_forward_pass(
+                self.model, batch_size=self.batch_size, device=self.device
+            )
+            print('\tForward pass time: {} msec/batch'.format(forward_pass_time))
+            backward_pass_time = train.time_objects.time_model_backward_pass(
+                self.model, batch_size=self.batch_size, device=self.device
+            )
+            print('\tBackward pass time: {} msec/batch'.format(backward_pass_time))
+            train_dataloader_time = train.time_objects.time_dataloader(self.train_dataloader) / 1000
+            print('\tTrain dataloader time: {} sec/epoch'.format(train_dataloader_time))
+            val_dataloader_time = train.time_objects.time_dataloader(self.val_dataloader) / 1000
+            print('\tVal dataloader time: {} sec/epoch'.format(val_dataloader_time))
+            test_dataloader_time = train.time_objects.time_dataloader(self.test_dataloader) / 1000
+            print('\tTest dataloader time: {} sec/epoch'.format(test_dataloader_time))
+            if self.using_wandb:
+                wandb.summary.update({
+                    'forward_pass_msec': forward_pass_time,
+                    'backward_pass_msec': backward_pass_time,
+                    'train_dataloader_sec': train_dataloader_time,
+                    'val_dataloader_sec': val_dataloader_time,
+                    'test_dataloader_sec': test_dataloader_time
+                })
         
         if starting_checkpoint is not None:
-            print('Loading model from checkpoint at {} ...'.format(starting_checkpoint))
+            print('\nLoading model from checkpoint at {} ...'.format(starting_checkpoint))
             starting_checkpoint = torch.load(starting_checkpoint, map_location=self.device)
             self.model.load_state_dict(checkpoint['model_state'])
             self.optimizer.load_state_dict(checkpoint['optimizer_state'])
@@ -348,3 +384,17 @@ def generate_figs(trial_dir):
         
     # Save results
     fig.savefig(os.path.join(trial_dir, 'figures', 'collected_results.pdf'))
+
+def construct_transform(transforms):
+    constructed_transforms = []
+    for val in transforms:
+        if isinstance(val, list):
+            tf, tf_kwargs = val
+        else:
+            tf = val
+            tf_kwargs = {}
+        if isinstance(tf, str):
+            tf = getattr(datasets.transforms, tf)
+        constructed_transforms.append(tf(**tf_kwargs))
+    composed_transform = Compose(constructed_transforms)
+    return composed_transform

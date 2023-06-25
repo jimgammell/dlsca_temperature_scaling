@@ -4,10 +4,12 @@
     "dataset_kwargs": {
         "target_byte": 0,
         "interval_to_use": [0, 20000],
-        "downsample_ratio": 4,
         "target_attack_point": "sub_bytes_in"
     },
     "model_name": "BigZaidNet",
+    "model_kwargs": {
+        "pooling_method": "aa_sconv"
+    },
     "optimizer_class": "Adam",
     "criterion_class": "CrossEntropyLoss",
     "use_sam": false,
@@ -20,13 +22,20 @@
     "rescale_temperature": false,
     "precise_bn_stats": false,
     "train_sample_transforms": [
-        "ToFloatTensor"
+        "ToFloatTensor",
+        ["Standardize", {"mean": -0.2571, "stdev": 0.1296}],
+        "AddGaussianNoise"
     ],
     "train_target_transforms": [
-        "ToLongTensor"
+        "ToLongTensor",
+        "ToOneHot",
+        "LabelSmoothing"
+    ],
+    "train_batch_transforms": [
     ],
     "eval_sample_transforms": [
-        "ToFloatTensor"
+        "ToFloatTensor",
+        ["Standardize", {"mean": -0.2571, "stdev": 0.1296}]
     ],
     "eval_target_transforms": [
         "ToLongTensor"
@@ -42,6 +51,7 @@
         "accuracy": "get_acc",
         "rank": "get_rank"
     },
-    "selection_metric": "rank",
-    "maximize_selection_metric": false
+    "selection_metric": "accuracy",
+    "maximize_selection_metric": true,
+    "seed": 0
 }

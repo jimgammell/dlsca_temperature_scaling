@@ -2,44 +2,64 @@ import numpy as np
 import torch
 from torch import nn
 
-# Converts a numpy float array trace to a PyTorch tensor
-class ToFloatTensor(nn.Module):
-    def forward(self, x):
-        return torch.tensor(x, dtype=torch.float)
+class Transform(nn.Module):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.kwargs = kwargs
+        for var_name, var in kwargs.items():
+            setattr(self, var_name, var)
+    
+    def __repr__(self):
+        return self.__class__.__name__ + '({})'.format(
+            ', '.join(['{}={}'.format(key, val) for key, val in self.kwargs.items()])
+        )
 
-class ToLongTensor(nn.Module):
+# Converts a numpy float array trace to a PyTorch tensor
+class ToFloatTensor(Transform):
     def forward(self, x):
-        return torch.tensor(x, dtype=torch.long)
+        return torch.as_tensor(x, dtype=torch.float)
+
+class ToLongTensor(Transform):
+    def forward(self, x):
+        return torch.as_tensor(x, dtype=torch.long)
 
 # Converts a numpy integer array label to a PyTorch label vector in one-hot form
-class ToOneHot(nn.Module):
+class ToOneHot(Transform):
     def forward(self, x):
-        if not isinstance(x, torch.Tensor):
-            x = torch.tensor(x, dtype=torch.long)
         return nn.functional.one_hot(x, num_classes=256).to(torch.float)
 
+class Downsample(Transform):
+    def __init__(self, downsample_ratio):
+        super().__init__(downsample_ratio=downsample_ratio)
+        
+    def forward(self, x):
+        return nn.functional.max_pool1d(x, self.downsample_ratio)
+
+class Standardize(Transform):
+    def __init__(self, mean=0.0, stdev=1.0):
+        super().__init__(mean=mean, stdev=stdev)
+        
+    def forward(self, x):
+        return (x - self.mean) / self.stdev
+
 # Smooths out one-hot labels to reflect that there is some uncertainty in the true label
-class LabelSmoothing(nn.Module):
+class LabelSmoothing(Transform):
     def __init__(
         self,
         eps=0.1 # Probability that the target label is incorrect
     ):
-        super().__init__()
-        
-        self.eps = eps
+        super().__init__(eps=eps)
     
     def forward(self, x):
-        return (1-self.eps)*x + eps*torch.ones_like(x)/(x.size(1)-1)
+        return (1-self.eps)*x + self.eps*torch.ones_like(x)/(x.size(-1)-1)
 
 # Randomly crop out a subset of a trace to simulate desynchronization and promote invariance to translation
-class RandomCrop(nn.Module):
+class RandomCrop(Transform):
     def __init__(
         self,
         length_to_remove=50 # How many elements of the input vector to crop away from the sides
     ):
-        super().__init__()
-        
-        self.length_to_remove = length_to_remove
+        super().__init__(length_to_remove=length_to_remove)
         
     def forward(self, x):
         start_idx = np.random.randint(self.length_to_remove)
@@ -47,28 +67,24 @@ class RandomCrop(nn.Module):
         return x[:, start_idx:end_idx]
 
 # Add uniform random noise from bin width to reflect that we only know the true sample value up to measurement resolution
-class SmoothBins(nn.Module):
+class SmoothBins(Transform):
     def __init__(
         self,
         bin_width # Minimum positive distance between elements of the input vector
     ):
-        super().__init__()
-        
-        self.bin_width = bin_width
+        super().__init__(bin_width=bin_width)
         
     def forward(self, x):
         return x + self.bin_width*torch.rand_like(x)
 
 # Add Gaussian noise to the samples while preserving mean and standard deviation, to reflect that there is some noise unrelated
 #   to the AES key in the actual measurements
-class AddGaussianNoise(nn.Module):
+class AddGaussianNoise(Transform):
     def __init__(
         self,
-        noise_stdev # Standard deviation of the Gaussian noise to be added to the input vector
+        noise_stdev=0.1 # Standard deviation of the Gaussian noise to be added to the input vector
     ):
-        super().__init__()
-        
-        self.noise_stdev = noise_stdev
+        super().__init__(noise_stdev=noise_stdev)
         
     def forward(self, x):
         # Add noise and rescale input so the standard deviation remains unchanged
@@ -76,16 +92,13 @@ class AddGaussianNoise(nn.Module):
 
 # Randomly replace some interval of the trace with random noise while preserving mean and standard deviation, to force the model to
 #   consider as much of the trace as possible rather than relying only on a small subinterval
-class RandomErasing(nn.Module):
+class RandomErasing(Transform):
     def __init__(
         self,
         erase_prob=0.25, # Probability with which to erase part of the input
         max_erased_prop=0.25 # Maximum proportion of the input which may be erased
     ):
-        super().__init__()
-        
-        self.erase_prob = erase_prob
-        self.max_erased_prop = max_erased_prop
+        super().__init__(erase_prob=erase_prob, max_erased_prob=max_erased_prob)
         
     def forward(self, x):
         if np.random.rand() < self.erase_prob: # Execute this branch with probability self.erase_prob
@@ -98,16 +111,13 @@ class RandomErasing(nn.Module):
     
 # Apply a low pass filter to the trace to reflect that as experimental conditions change, there may be different amounts of parasitic
 #   capacitance and inductance in the measurement setup
-class RandomLowPassFilter(nn.Module):
+class RandomLowPassFilter(Transform):
     def __init__(
         self,
         filter_prob=0.25, # Probability with which to low pass filter the input
         max_kernel_radius=5 # Maximum-size radius of the kernel; kernel width will be 1+2*kernel_radius
     ):
-        super().__init__()
-        
-        self.filter_prob = filter_prob
-        self.max_kernel_radius = max_kernel_radius
+        super().__init__(filter_prob=filter_prob, max_kernel_radius=max_kernel_radius)
     
     def forward(self, x):
         if np.random.rand() < self.filter_prob:
@@ -119,13 +129,13 @@ class RandomLowPassFilter(nn.Module):
     
 # Apply high pass filter to reflect that as experimental conditions change there may be different amounts of parasitic capacitance
 #   and inductance in the measurement setup
-class RandomHighPassFilter(nn.Module):
+class RandomHighPassFilter(Transform):
     def __init__(
         self,
         filter_prob=0.25, # Probability with which to high pass filter the input
         max_kernel_radius=5 # Maximum-size radius of the kernel; kernel width will be 1+2*kernel_radius
     ):
-        super().__init__()
+        super().__init__(filter_prob=filter_prob, max_kernel_radius=max_kernel_radius)
         
         self.lpf = RandomLowPassFilter(filter_prob, max_kernel_radius)
         
@@ -134,40 +144,34 @@ class RandomHighPassFilter(nn.Module):
     
 # Linearly-combine pairs of traces and labels, to promote the model linearly-interpolating its predictions as we linearly-interpolate
 #   between traces. This has been shown to boost performance and robustness in computer vision models.
-class Mixup(nn.Module):
+class Mixup(Transform):
     def __init__(
         self,
-        mixup_prob=0.5, # Probability with which to apply mixup to a batch
+        mixup_prob=1.0, # Probability with which to apply mixup to a batch
         alpha=0.2 # Controls coefficients for the linear interpolation. With larger values, batches will deviate more from real
                   #   examples.
     ):
-        super().__init__()
-        
-        self.mixup_prob = mixup_prob
-        self.alpha = alpha
+        super().__init__(mixup_prob=mixup_prob, alpha=alpha)
         
     def forward(self, batch):
         traces, labels = batch
         if np.random.rand() < self.mixup_prob:
-            indices = torch.randperm(traces.size(0), device=self.device, dtype=torch.long)
-            lbd = np.random.beta(alpha, alpha)
+            indices = torch.randperm(traces.size(0), device=traces.device, dtype=torch.long)
+            lbd = np.random.beta(self.alpha, self.alpha)
             traces = lbd*traces + (1-lbd)*traces[indices, :]
             labels = lbd*labels + (1-lbd)*labels[indices]
         return (traces, labels)
 
 # Combine different intervals of traces and reweight labels in proportion to the interval length of the trace it reflects. Similarly
 #   to mixup, this has been shown to boost model performance and robustness in computer vision models.
-class Cutmix(nn.Module):
+class Cutmix(Transform):
     def __init__(
         self,
         cutmix_prob=0.5, # Probability with which to apply cutmix to a batch
         alpha=0.2 # Controls coefficients for the sizes of each region. Larger values mean it will tend to be closer to a 50/50
                   #  combination of two traces.
     ):
-        super().__init__()
-        
-        self.cutmix_prob = cutmix_prob
-        self.alpha = alpha
+        super().__init__(cutmix_prob=cutmix_prob, alpha=alpha)
         
     def forward(self, x):
         traces, labels = batch
