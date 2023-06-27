@@ -5,6 +5,7 @@ from torch.nn.modules.batchnorm import _BatchNorm
 PreciseBatchNorm = type('PreciseBatchNorm', (_BatchNorm,), {'momentum': None, 'track_running_stats': True})
 
 class VerboseModule(nn.Module):
+    @torch.no_grad()
     def save_input_shape(self, input_shape):
         self.input_shape = input_shape
         eg_input = torch.randn(1, *input_shape)
@@ -14,6 +15,7 @@ class VerboseModule(nn.Module):
             setattr(mod, 'input_shape', eg_input.shape[1:])
             eg_input = mod(eg_input)
 
+    @torch.no_grad()
     def extra_repr(self):
         info = []
         info.append('Parameter count: {}'.format(sum(p.numel() for p in self.parameters() if p.requires_grad)))

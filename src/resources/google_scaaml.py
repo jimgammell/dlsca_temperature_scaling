@@ -25,7 +25,7 @@ def decompress_dataset():
             files = [f for f in os.listdir(path) if f.split('.')[-1] == 'npz']
             for f_idx, filename in tqdm(enumerate(files), total=len(files)):
                 shard = np.load(os.path.join(path, filename))
-                traces = np.array(shard['traces'], dtype=np.float16).reshape(256, 1, 80000)
+                traces = np.array(shard['traces'], dtype=np.float16).transpose((0, 2, 1))
                 F['traces'][f_idx*256 : (f_idx+1)*256, :, :] = traces
                 metadata = {
                     '{}__{}'.format(attack_point, byte): np.array(val, dtype=np.uint8)

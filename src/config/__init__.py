@@ -31,20 +31,28 @@ def set_num_agents(val):
 def get_num_agents():
     return NUM_AGENTS
 
+def get_config_base_dir(train=True, gan=False):
+    base_dir = TRAIN_CONFIGS if train else HTUNE_CONFIGS
+    if gan:
+        base_dir = os.path.join(base_dir, 'gan')
+    else:
+        base_dir = os.path.join(base_dir, 'classifier')
+    return base_dir
+
 # List the configuration files found in the config directory. Directory depends on whether the config files specify a single run or
 #   a WandB hyperparameter sweep.
-def get_available_configs(train=True):
-    base_dir = TRAIN_CONFIGS if train else HTUNE_CONFIGS
+def get_available_configs(train=True, gan=False):
+    base_dir = get_config_base_dir(train=train, gan=gan)
     return [x.split('.')[0] for x in os.listdir(base_dir) if x.split('.')[-1] == 'json']
 
 # Load the dictionary encoded by the specified configuration file.
-def load_config(config, train=True):
-    available_configs = get_available_configs(train=train)
+def load_config(config, train=True, gan=False):
+    available_configs = get_available_configs(train=train, gan=gan)
     if not config in available_configs:
         raise Exception('Invalid config argument. Valid options: [\n{}\n]'.format(',\n\t'.join(available_configs)))
     if config.split('.')[-1] != 'json':
         config = config + '.json'
-    with open(os.path.join(CONFIG_DIR, TRAIN_CONFIGS if train else HTUNE_CONFIGS, config), 'r') as F:
+    with open(os.path.join(get_config_base_dir(train=train, gan=gan), config), 'r') as F:
         settings = json.load(F)
     return settings
 

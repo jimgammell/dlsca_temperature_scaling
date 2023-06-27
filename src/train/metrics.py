@@ -76,3 +76,10 @@ def get_norms(model):
     total_weight_norm = np.sqrt(total_weight_norm)
     total_grad_norm = np.sqrt(total_grad_norm)
     return {'weight_norm': total_weight_norm, 'grad_norm': total_grad_norm}
+
+def get_hinge_acc(logits, y):
+    if isinstance(logits, torch.Tensor):
+        logits = logits.detach().cpu().numpy()
+    predictions = np.sign(logits)
+    acc = np.mean(np.equal(predictions, y*np.ones_like(predictions)))
+    return acc

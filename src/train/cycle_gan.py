@@ -1,6 +1,7 @@
 import os
 import random
 import time
+from tqdm import tqdm
 from copy import copy
 import pickle
 import numpy as np
@@ -12,7 +13,8 @@ import config
 from config import printl as print
 import train, train.common
 import datasets, datasets.common, datasets.transforms
-import models, models.common
+import models, models.common, models.parameter_averaging
+from datasets.transforms import construct_transform
 
 class CycleGANTrainer:
     def __init__(
@@ -22,6 +24,10 @@ class CycleGANTrainer:
         generator_name=None, generator_kwargs={},
         discriminator_optimizer_class=None, discriminator_optimizer_kwargs={},
         generator_optimizer_class=None, generator_optimizer_kwargs={},
+        perturbation_l1_penalty=1.0,
+        cyclical_l1_penalty=1.0,
+        parameter_drift_penalty=0.0,
+        disc_steps_per_gen_step=1,
         train_sample_transforms=[], train_target_transforms=[], train_batch_transforms=[],
         eval_sample_transforms=[], eval_target_transforms=[], eval_batch_transforms=[],
         seed=None,
@@ -32,6 +38,8 @@ class CycleGANTrainer:
         selection_metric=None, maximize_selection_metric=False,
         **kwargs
     ):
+        if len(kwargs) > 0:
+            print('Warning: unused kwargs with names \'{}\''.format('\', \''.join(list(kwargs.keys()))))
         for var_name, var in locals().items():
             setattr(self, var_name, var)
         
@@ -45,10 +53,17 @@ class CycleGANTrainer:
         assert isinstance(self.discriminator_optimizer_kwargs, dict)
         assert hasattr(optim, self.generator_optimizer_class)
         assert isinstance(self.generator_optimizer_kwargs, dict)
+        assert isinstance(self.perturbation_l1_penalty, float)
+        assert isinstance(self.cyclical_l1_penalty, float)
+        assert isinstance(self.parameter_drift_penalty, float)
         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
                         self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms]:
             assert isinstance(tf_list, list)
-            assert all(hasattr(datasets.transforms, tf) for tf in tf_list)
+            assert all(
+                hasattr(datasets.transforms, tf) if isinstance(tf, str)
+                else hasattr(datasets.transforms, tf[0])
+                for tf in tf_list
+            )
         assert (self.seed is None) or isinstance(self.seed, int)
         assert self.device in [None, 'cpu', 'cuda', *['cuda:%d'%(dev_idx) for dev_idx in range(torch.cuda.device_count())]]
         assert isinstance(self.batch_size, int) and (self.batch_size > 0)
@@ -70,27 +85,32 @@ class CycleGANTrainer:
         )
         self.val_dataset.dataset = copy(self.val_dataset.dataset)
         self.test_dataset = datasets.construct_dataset(self.dataset_name, train=False, **self.dataset_kwargs)
-        self.train_sample_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.train_sample_transforms])
-        self.train_target_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.train_target_transforms])
-        self.train_batch_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.train_batch_transforms])
-        self.eval_sample_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.eval_sample_transforms])
-        self.eval_target_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.eval_target_transforms])
-        self.eval_batch_transform = Compose([getattr(datasets.transforms, tf)() for tf in self.eval_batch_transforms])
+        self.train_sample_transform = construct_transform(self.train_sample_transforms)
+        self.train_target_transform = construct_transform(self.train_target_transforms)
+        self.train_batch_transform = construct_transform(self.train_batch_transforms)
+        self.eval_sample_transform = construct_transform(self.eval_sample_transforms)
+        self.eval_target_transform = construct_transform(self.eval_target_transforms)
+        self.eval_batch_transform = construct_transform(self.eval_batch_transforms)
         self.train_dataset.dataset.transform = self.train_sample_transform
         self.train_dataset.dataset.target_transform = self.train_target_transform
         self.val_dataset.dataset.transform = self.eval_sample_transform
         self.val_dataset.dataset.target_transform = self.eval_target_transform
         self.test_dataset.transform = self.eval_sample_transform
         self.test_dataset.target_transform = self.eval_target_transform
-        self.train_dataloader = datasets.common.get_dataloader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
-        self.val_dataloader = datasets.common.get_dataloader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
-        self.test_dataloader = datasets.common.get_dataloader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        self.train_dataloader = datasets.common.DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
+        self.val_dataloader = datasets.common.DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
+        self.test_dataloader = datasets.common.DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
         self.generator = models.construct_model(
             self.generator_name, input_shape=self.train_dataset.dataset.data_shape, **self.generator_kwargs
         )
+        models.parameter_averaging.decorate_model(self.generator)
         self.discriminator = models.construct_model(
             self.discriminator_name, input_shape=self.train_dataset.dataset.data_shape, **self.discriminator_kwargs
         )
+        if not hasattr(self.generator, 'input_shape'):
+            setattr(self.generator, 'input_shape', self.train_dataset.dataset.data_shape)
+        if not hasattr(self.discriminator, 'input_shape'):
+            setattr(self.discriminator, 'input_shape', self.train_dataset.dataset.data_shape)
         self.generator = self.generator.to(self.device)
         self.discriminator = self.discriminator.to(self.device)
         self.generator_optimizer = getattr(optim, self.generator_optimizer_class)(
@@ -100,99 +120,117 @@ class CycleGANTrainer:
             self.discriminator.parameters(), **self.discriminator_optimizer_kwargs
         )
     
-    def train_step(self, batch, train_gen=True, train_disc=True):
+    def train_step(
+        self,
+        batch,
+        train_gen=True,
+        train_disc=True
+    ):
         start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
         start.record()
         
-        rv = train.metrics.ResultsDict()
         traces, labels = datasets.common.unpack_batch(batch, self.device)
         if self.train_batch_transform is not None:
             traces, labels = self.train_batch_transform((traces, labels))
-        rec_labels = torch.randint(0, self.train_dataset.num_outputs, size=labels.size(0), dtype=torch.long, device=y.device)
+        labels_rec = torch.randint_like(labels, 256)
         
         if train_disc:
             self.generator.eval()
             self.discriminator.train()
             
+            # Discriminator features from CNN feature extractor, to be shared with all heads
             with torch.no_grad():
-                traces_rec = self.generator(traces, rec_labels)
+                traces_rec = self.generator(traces, labels_rec)
             disc_features_orig = self.discriminator.extract_features(traces)
             disc_features_rec = self.discriminator.extract_features(traces_rec)
             
-            disc_logits_orig_leakage = self.discriminator.classify_leakage(disc_features_orig)
-            disc_loss_orig_leakage = nn.functional.cross_entropy_loss(disc_logits_orig_leakage, labels)
-            disc_logits_rec_leakage = self.discriminator.classify_leakage(disc_features_rec)
-            disc_loss_rec_leakage = nn.functional.cross_entropy_loss(disc_logits_rec_leakage, labels)
+            # Discriminator head which classifies the original traces
+            disc_logits_naive_leakage = self.discriminator.classify_naive_leakage(disc_features_orig)
+            disc_loss_naive_leakage = nn.functional.cross_entropy(disc_logits_naive_leakage, labels)
             
+            # Discriminator head which classifies the reconstructed traces
+            disc_logits_adv_leakage = self.discriminator.classify_adversarial_leakage(disc_features_rec)
+            disc_loss_adv_leakage = nn.functional.cross_entropy(disc_logits_adv_leakage, labels)
+            
+            # Discriminator head which classifies traces as real or reconstructed, given access to the (reconstruction) label
             disc_logits_orig_realism = self.discriminator.classify_realism(disc_features_orig, labels)
-            disc_loss_orig_realism = hinge_loss(disc_logits_orig_realism, 1)
             disc_logits_rec_realism = self.discriminator.classify_realism(disc_features_rec, labels_rec)
+            disc_loss_orig_realism = hinge_loss(disc_logits_orig_realism, 1)
             disc_loss_rec_realism = hinge_loss(disc_logits_rec_realism, -1)
             disc_loss_realism = disc_loss_orig_realism + disc_loss_rec_realism
             
-            disc_loss = disc_loss_leakage + disc_loss_realism
+            # Update discriminator parameters to make each of the above heads better at their job
+            disc_loss = disc_loss_naive_leakage + disc_loss_adv_leakage + disc_loss_realism
             self.discriminator_optimizer.zero_grad()
             disc_loss.backward()
             self.discriminator_optimizer.step()
-            
-            rv.update({
-                'disc_loss_realism': disc_loss_realism.item(),
-                'disc_loss_leakage': disc_loss_leakage.item(),
-                'disc_loss_orig_realism': disc_loss_orig_realism.item(),
-                'disc_loss_rec_realism': disc_loss_rec_realism.item(),
-                'disc_acc_realism': 0.5*train.metrics.hinge_acc(disc_logits_orig_realism, 1) + 0.5*train.metrics.hinge_acc(disc_logits_rec_realism, -1),
-                'disc_acc_orig_leakage': train.metrics.accuracy(disc_logits_orig_leakage, labels),
-                'disc_acc_rec_leakage': train.metrics.accuracy(disc_logits_rec_leakage, labels)
-            })
-            rv.update({'disc_acc_leakage': 0.5*rv['disc_acc_orig_leakage'] + 0.5*rv['disc_acc_rec_leakage']})
             
         if train_gen:
             self.generator.train()
             self.discriminator.eval()
             
-            traces_rec = self.generator(traces, rec_labels)
+            # Compute the reconstructed and cyclically-reconstructed traces and the discriminator features for them
+            traces_rec = self.generator(traces, labels_rec)
+            traces_rec_rec = self.generator(traces_rec, labels)
             disc_features_rec = self.discriminator.extract_features(traces_rec)
             
-            disc_logits_rec_leakage = self.discriminator.classify_leakage(disc_features_rec)
-            gen_loss_leakage = nn.functional.cross_entropy_loss(disc_logits_rec_leakage, labels_rec)
+            # Check whether the naive discriminator leakage head assigns the intended labels to these traces
+            disc_logits_naive_leakage = self.discriminator.classify_naive_leakage(disc_features_rec)
+            gen_loss_naive_leakage = nn.functional.cross_entropy(disc_logits_naive_leakage, labels_rec)
             
+            # Check whether the adversarial discriminator leakage head can determine the original leakage
+            disc_logits_adv_leakage = self.discriminator.classify_adversarial_leakage(disc_features_rec)
+            gen_loss_adv_leakage = nn.functional.cross_entropy(
+                disc_logits_adv_leakage, nn.functional.softmax(torch.zeros_like(disc_logits_adv_leakage), dim=-1)
+            ) # cross entropy with uniform distribution
+            
+            # Check whether the discriminator recognizes that these are fake traces
             disc_logits_rec_realism = self.discriminator.classify_realism(disc_features_rec, labels_rec)
             gen_loss_realism = -disc_logits_rec_realism.mean()
             
-            gen_loss = gen_loss_leakage + gen_loss_realism
+            # Compute the auxillary loss terms
+            gen_perturbation_l1_loss = nn.functional.l1_loss(traces, traces_rec)
+              # Want to perturb as-few samples as possible
+            gen_cyclical_l1_loss = nn.functional.l1_loss(traces, traces_rec_rec)
+              # Want to be able to reconstruct original trace, given original labels
+            gen_parameter_drift_loss = self.generator.get_parameter_drift_loss()
+              # Improve stability by penalizing movement in the generator parameters relative to their average value
             
-            if self.perturbation_l1_penalty > 0:
-                gen_perturbation_l1_loss = nn.functional.l1_loss(traces, traces_rec)
-                gen_loss += self.perturbation_l1_penalty*gen_perturbation_l1_loss
-                rv.update({'gen_perturbation_l1_loss': gen_perturbation_l1_loss.item()})
-            
-            if self.cyclical_l1_penalty > 0:
-                traces_crec = self.generator(traces_rec, labels)
-                gen_cyclical_l1_loss = nn.functional.l1_loss(traces, traces_crec)
-                gen_loss += self.cyclical_l1_penalty*gen_cyclical_l1_loss
-                rv.update({'gen_cyclical_l1_loss': gen_cyclical_l1_loss.item()})
-            
-            if self.parameter_drift_penalty > 0:
-                gen_parameter_drift_loss = self.generator.get_parameter_drift_loss()
-                gen_loss += self.parameter_drift_penalty*gen_parameter_drift_loss
-                rv.update({'gen_parameter_drift_loss': gen_parameter_drift_loss.item()})
-            
-            rv.update({
-                'gen_loss_leakage': gen_loss_leakage.item(),
-                'gen_loss_realism': gen_loss_realism.item(),
-                'gen_loss': gen_loss.item()
-            })
-            
+            gen_loss = gen_loss_naive_leakage + gen_loss_adv_leakage + gen_loss_realism + \
+                       self.perturbation_l1_penalty*gen_perturbation_l1_loss + \
+                       self.cyclical_l1_penalty*gen_cyclical_l1_loss + \
+                       self.parameter_drift_penalty*gen_parameter_drift_loss
             self.generator_optimizer.zero_grad()
             gen_loss.backward()
             self.generator_optimizer.step()
-        
             if self.parameter_drift_penalty > 0:
-                self.generator.update_average_parameters()            
+                self.generator.update_average_parameters()
         
         end.record()
         torch.cuda.synchronize()
-        rv['time_per_batch'] = start.elapsed_time(end)
+        # Record the training metrics. Doing this all at once to avoid synchronizing the CPU + GPU in the middle of the batch.
+        rv = {}
+        if train_disc:
+            rv.update({
+                'disc_loss_naive_leakage': disc_loss_naive_leakage.item(),
+                'disc_loss_adv_leakage': disc_loss_adv_leakage.item(),
+                'disc_loss_realism': disc_loss_realism.item(),
+                'disc_loss': disc_loss.item(),
+                'disc_acc_realism': 0.5*train.metrics.get_hinge_acc(disc_logits_orig_realism, 1) + 0.5*train.metrics.get_hinge_acc(disc_logits_rec_realism, -1),
+                'disc_acc_naive_leakage': train.metrics.get_acc(disc_logits_naive_leakage, labels),
+                'disc_acc_adv_leakage': train.metrics.get_acc(disc_logits_adv_leakage, labels)
+            })
+        if train_gen:
+            rv.update({
+                'gen_loss_naive_leakage': gen_loss_naive_leakage.item(),
+                'gen_loss_adv_leakage': gen_loss_adv_leakage.item(),
+                'gen_loss_realism': gen_loss_realism.item(),
+                'gen_perturbation_l1_loss': gen_perturbation_l1_loss.item(),
+                'gen_cyclical_l1_loss': gen_cyclical_l1_loss.item(),
+                'gen_parameter_drift_loss': gen_parameter_drift_loss.item(),
+                'gen_loss': gen_loss.item()
+            })
+        rv.update({'time_per_batch': start.elapsed_time(end)})
         return rv
     
     @torch.no_grad()
@@ -206,15 +244,18 @@ class CycleGANTrainer:
         traces, labels = datasets.common.unpack_batch(batch, self.device)
         if self.eval_batch_transform is not None:
             traces, labels = self.eval_batch_transform((traces, labels))
-        labels_rec = torch.randint(0, self.train_dataset.num_outputs, size=labels.size(0), dtype=torch.long, device=self.device)
+        labels_rec = torch.randint_like(labels, 256)
         traces_rec = self.generator(traces, labels_rec)
+        traces_rec_rec = self.generator(traces_rec, labels)
         disc_features_orig = self.discriminator.extract_features(traces)
         disc_features_rec = self.discriminator.extract_features(traces_rec)
         
+        disc_logits_
+        
         disc_logits_orig_leakage = self.discriminator.classify_leakage(disc_features_orig)
         disc_logits_rec_leakage = self.discriminator.classify_leakage(disc_features_rec)
-        disc_loss_orig_leakage = nn.functional.cross_entropy_loss(disc_logits_orig_leakage, labels)
-        disc_loss_rec_leakage = nn.functional.cross_entropy_loss(disc_logits_rec_leakage, labels_rec)
+        disc_loss_orig_leakage = nn.functional.cross_entropy(disc_logits_orig_leakage, labels)
+        disc_loss_rec_leakage = nn.functional.cross_entropy(disc_logits_rec_leakage, labels_rec)
         disc_loss_leakage = disc_loss_orig_leakage + disc_loss_rec_leakage
         
         disc_logits_orig_realism = disc.classify_realism(disc_features_orig, labels)
@@ -264,7 +305,7 @@ class CycleGANTrainer:
     def train_epoch(self, **kwargs):
         disc_steps = gen_steps = 0
         rv = train.metrics.ResultsDict()
-        for bidx, batch in enumerate(self.train_dataloader):
+        for bidx, batch in enumerate(tqdm(self.train_dataloader)):
             if self.disc_steps_per_gen_step > 1:
                 disc_steps += 1
                 train_disc = True
@@ -281,10 +322,11 @@ class CycleGANTrainer:
                 train_gen = train_disc = True
             step_rv = self.train_step(batch, train_gen=train_gen, train_disc=train_disc, **kwargs)
             rv.update(step_rv)
+        rv.reduce(np.mean)
         return rv
     
     def eval_epoch(self, dataloader, **kwargs):
-        rv = train.common.run_epoch(dataloader, self.eval_step, **kwargs)
+        rv = train.common.run_epoch(dataloader, self.eval_step, use_progress_bar=True, **kwargs)
         return rv
     
     def train_model(
@@ -292,7 +334,7 @@ class CycleGANTrainer:
         epochs,
         starting_checkpoint=None,
         results_save_dir=None,
-        model_save_dir=one
+        model_save_dir=None
     ):
         print('Initializing trial ...')
         self.reset(epochs)
@@ -304,7 +346,10 @@ class CycleGANTrainer:
         print(self.generator)
         print('Discriminator:')
         print(self.discriminator)
-        print('Train/val/test datasets: {} / {} / {}'.format(self.train_dataset, self.val_dataset, self.test_dataset))
+        print('Train dataset: {}'.format(self.train_dataset.dataset))
+        print('Val dataset: {}'.format(self.val_dataset.dataset))
+        print('Test dataset: {}'.format(self.test_dataset))
+        print('Train/val lengths: {} / {}'.format(len(self.train_dataset), len(self.val_dataset)))
         print('Train/val/test dataloaders: {} / {} / {}'.format(self.train_dataloader, self.val_dataloader, self.test_dataloader))
         print('Gen/disc optimizers: {} / {}'.format(self.generator_optimizer, self.discriminator_optimizer))
         print('Device: {}'.format(self.device))
@@ -366,3 +411,6 @@ class CycleGANTrainer:
                             **{'best_val_%s'%(key): val for key, val in val_erv.items()},
                             **{'best_test_%s'%(key): val for key, val in test_erv.items()}
                         })
+
+def hinge_loss(logits, y):
+    return nn.functional.relu(1-y*logits).mean()

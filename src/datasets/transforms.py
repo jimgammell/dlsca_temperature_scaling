@@ -1,6 +1,22 @@
+import sys
 import numpy as np
 import torch
 from torch import nn
+from torchvision.transforms import Compose
+
+def construct_transform(transforms):
+    constructed_transforms = []
+    for val in transforms:
+        if isinstance(val, list):
+            tf, tf_kwargs = val
+        else:
+            tf = val
+            tf_kwargs = {}
+        if isinstance(tf, str):
+            tf = getattr(sys.modules[__name__], tf)
+        constructed_transforms.append(tf(**tf_kwargs))
+    composed_transform = Compose(constructed_transforms)
+    return composed_transform
 
 class Transform(nn.Module):
     def __init__(self, **kwargs):
@@ -41,6 +57,13 @@ class Standardize(Transform):
         
     def forward(self, x):
         return (x - self.mean) / self.stdev
+    
+class Normalize(Transform):
+    def __init__(self, min=-1.0, max=1.0):
+        super().__init__(min=min, max=max)
+    
+    def forward(self, x):
+        return 2 * (x - 0.5*(self.min+self.max)) / (self.max-self.min)
 
 # Smooths out one-hot labels to reflect that there is some uncertainty in the true label
 class LabelSmoothing(Transform):

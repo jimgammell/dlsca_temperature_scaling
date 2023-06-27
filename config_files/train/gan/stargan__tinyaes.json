@@ -1,0 +1,45 @@
+{
+    "save_dir": "stargan__tinyaes",
+    "dataset_name": "GoogleTinyAES",
+    "dataset_kwargs": {
+        "target_byte": 7,
+        "interval_to_use": [0, 20000],
+        "target_attack_point": "sub_bytes_out"
+    },
+    "discriminator_name": "StarGAN__Discriminator",
+    "generator_name": "StarGAN__Generator",
+    "discriminator_optimizer_class": "Adam",
+    "discriminator_optimizer_kwargs": {
+        "lr": 4e-4,
+        "betas": [0.5, 0.999]
+    },
+    "generator_optimizer_class": "Adam",
+    "generator_optimizer_kwargs": {
+        "lr": 1e-4,
+        "betas": [0.5, 0.999]
+    },
+    "train_sample_transforms": [
+        "ToFloatTensor",
+        ["Downsample", {"downsample_ratio": 4}],
+        ["Normalize", {"min": -1.026, "max": 0.9854}]
+    ],
+    "train_target_transforms": [
+        "ToLongTensor"
+    ],
+    "eval_sample_transforms": [
+        "ToFloatTensor",
+        ["Downsample", {"downsample_ratio": 4}],
+        ["Normalize", {"min": -1.026, "max": 0.9854}]
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "perturbation_l1_penalty": 0.0,
+    "cyclical_l1_penalty": 1.0,
+    "parameter_drift_penalty": 0.0,
+    "disc_steps_per_gen_step": 5,
+    "total_epochs": 5,
+    "seed": 0,
+    "batch_size": 32,
+    "val_split_prop": 0.2
+}

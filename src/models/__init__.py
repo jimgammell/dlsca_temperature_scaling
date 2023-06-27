@@ -4,13 +4,17 @@ import torch
 from torch import nn
 
 AVAILABLE_MODELS = []
-for mod_name in os.listdir(os.path.join(os.path.dirname(__file__), 'classifiers')):
-    if not mod_name.split('.')[-1] == 'py':
-        continue
-    mod = importlib.import_module('.'+mod_name.split('.')[0], 'models.classifiers')
-    if not hasattr(mod, 'AVAILABLE_MODELS'):
-        continue
-    AVAILABLE_MODELS += mod.AVAILABLE_MODELS
+def add_models_from_module(mod):
+    global AVAILABLE_MODELS
+    for submod_file in os.listdir(os.path.join(os.path.dirname(__file__), mod)):
+        if not submod_file.split('.')[-1] == 'py':
+            continue
+        submod = importlib.import_module('.'+submod_file.split('.')[0], 'models.'+mod)
+        if not hasattr(submod, 'AVAILABLE_MODELS'):
+            continue
+        AVAILABLE_MODELS += submod.AVAILABLE_MODELS
+add_models_from_module('classifiers')
+add_models_from_module('gans')
 
 def construct_model(model_name, **model_kwargs):
     model_classes = [m for m in AVAILABLE_MODELS if m.__name__ == model_name]
@@ -21,7 +25,8 @@ def construct_model(model_name, **model_kwargs):
                 model_name,
                 ',\t\n'.join([m.__name__ for m in AVAILABLE_MODELS])
             ))
-    model = model_classes[0](**model_kwargs)
+    model_class = model_classes[0]
+    model = model_class(**model_kwargs)
     return model
 
 def test(input_shape=(1, 700)):

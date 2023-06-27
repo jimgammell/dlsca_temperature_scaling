@@ -64,7 +64,7 @@ class FEBlock(VerboseModule):
             )
         else:
             self.conv = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=kernel_size//2)
-        self.selu = nn.ReLU(inplace=True) #nn.SELU()
+        self.selu = nn.SELU()
         self.bn = nn.BatchNorm1d(out_channels, eps=1e-3, momentum=0.9)
         if pooling_method == 'aa_maxpool':
             self.pool = nn.Sequential(
@@ -135,23 +135,49 @@ class BigZaidNet(VerboseModule):
         fe_blocks=3,
         mlp_blocks=3,
         mlp_dims=256,
-        pooling_method='avgpool'
+        pooling_method='avgpool',
+        conv_stem=False
     ):
         super().__init__()
         
-        initial_channels = mlp_dims // 2**(fe_blocks)
-        self.stem = Stem(input_shape[0], initial_channels, kernel_size=11)
-        self.feature_extractor = nn.Sequential(
-            *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11, pooling_method='none' if n==0 else pooling_method)
-              for n in range(fe_blocks)]
-        )
+        if conv_stem:
+            initial_channels = mlp_dims // 2**(fe_blocks)
+            self.stem = Stem(input_shape[0], initial_channels, kernel_size=11)
+            self.feature_extractor = nn.Sequential(
+                *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11,
+                          pooling_method='none' if (n==0 and pooling_method == 'aa_sconv') else pooling_method
+                         )
+                  for n in range(fe_blocks)]
+            )
+        else:
+            initial_channels = mlp_dims // 2**(fe_blocks-1)
+            self.stem = nn.MaxPool1d(4)
+            self.feature_extractor = nn.Sequential(
+                FEBlock(
+                    input_shape[0], initial_channels, 11,
+                    pooling_method='none' if pooling_method == 'aa_sconv' else pooling_method
+                ),
+                *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11, pooling_method=pooling_method)
+                  for n in range(fe_blocks-1)]
+            )
         self.global_average_pooling = GlobalAveragePooling()
         self.multilayer_perceptron = nn.Sequential(
             *[MLPBlock(mlp_dims, mlp_dims) for _ in range(mlp_blocks-1)],
             MLPBlock(mlp_dims, 256, use_act=False)
         )
         
+        self.apply(self.init_weights_)
         self.save_input_shape(input_shape)
+        
+        self.name = 'BigZaidNet'
+        
+    def init_weights_(self, module):
+        if isinstance(module, (nn.Conv1d, nn.Linear)):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity='linear', mode='fan_in')
+            module.bias.data.zero_()
+        elif isinstance(module, nn.BatchNorm1d):
+            module.weight.data.fill_(1.0)
+            module.bias.data.zero_()
         
     def forward(self, x):
         x = self.stem(x)

@@ -1,6 +1,7 @@
 import os
 import random
 import time
+from tqdm import tqdm
 from copy import copy
 import pickle
 from matplotlib import pyplot as plt
@@ -14,6 +15,8 @@ from config import printl as print
 import train, train.common, train.time_objects
 import datasets, datasets.common, datasets.transforms
 import models, models.common
+from models import temperature_scaling
+from datasets.transforms import construct_transform
 
 class ClassifierTrainer:
     def __init__(
@@ -28,6 +31,7 @@ class ClassifierTrainer:
         precise_bn_stats=False, # Whether or not to compute precise batchnorm stats after each training epoch
         train_sample_transforms=[], train_target_transforms=[], train_batch_transforms=[], # Transforms to apply at training time
         eval_sample_transforms=[], eval_target_transforms=[], eval_batch_transforms=[], # Transforms to apply at evaluation time
+        test_time_sample_transforms=[],
         seed=None, # Random seed to initialize default RNG for Python, Numpy, and PyTorch. None to use an arbitrary seed.
         device=None, # Device on which to train the mode. None will use first available GPU, or CPU if no GPU is present.
         batch_size=32, # Batch size for both training and evaluation
@@ -57,7 +61,8 @@ class ClassifierTrainer:
         assert isinstance(self.rescale_temperature, bool)
         assert isinstance(self.precise_bn_stats, bool)
         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
-                        self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms]:
+                        self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms,
+                        self.test_time_sample_transforms]:
             assert isinstance(tf_list, list)
             assert all(
                 hasattr(datasets.transforms, tf) if isinstance(tf, str)
@@ -98,6 +103,10 @@ class ClassifierTrainer:
         self.eval_sample_transform = construct_transform(self.eval_sample_transforms)
         self.eval_target_transform = construct_transform(self.eval_target_transforms)
         self.eval_batch_transform = construct_transform(self.eval_batch_transforms)
+        if len(self.test_time_sample_transforms) > 0:
+            self.test_time_sample_transform = construct_transform(self.test_time_sample_transforms)
+        else:
+            self.test_time_sample_transform = self.train_sample_transform
         self.train_dataset.dataset.transform = self.train_sample_transform
         self.train_dataset.dataset.target_transform = self.train_target_transform
         self.val_dataset.dataset.transform = self.eval_sample_transform
@@ -114,17 +123,18 @@ class ClassifierTrainer:
         if self.rescale_temperature:
             self.model = models.temperature_scaling(self.model)
             self.model = self.model.to(self.device)
-        if self.use_sam:
-            self.optimizer = train.sam.SAM(
-                model.parameters(), getattr(optim, self.optimizer_class), **self.sam_kwargs, **self.optimizer_kwargs
-            )
-        else:
-            self.optimizer = getattr(optim, self.optimizer_class)(self.model.parameters(), **self.optimizer_kwargs)
-        if self.lr_scheduler_class == 'OneCycleLR':
-            self.lr_scheduler_kwargs['total_steps'] = epochs*len(self.train_dataloader)
-        elif self.lr_scheduler_class == 'CosineAnnealingLR':
-            self.lr_scheduler_kwargs['T_max'] = epochs*len(self.train_dataloader)
-        self.lr_scheduler = getattr(optim.lr_scheduler, self.lr_scheduler_class)(self.optimizer, **self.lr_scheduler_kwargs)
+        if epochs is not None:
+            if self.use_sam:
+                self.optimizer = train.sam.SAM(
+                    model.parameters(), getattr(optim, self.optimizer_class), **self.sam_kwargs, **self.optimizer_kwargs
+                )
+            else:
+                self.optimizer = getattr(optim, self.optimizer_class)(self.model.parameters(), **self.optimizer_kwargs)
+            if self.lr_scheduler_class == 'OneCycleLR':
+                self.lr_scheduler_kwargs['total_steps'] = epochs*len(self.train_dataloader)
+            elif self.lr_scheduler_class == 'CosineAnnealingLR':
+                self.lr_scheduler_kwargs['T_max'] = epochs*len(self.train_dataloader)
+            self.lr_scheduler = getattr(optim.lr_scheduler, self.lr_scheduler_class)(self.optimizer, **self.lr_scheduler_kwargs)
         self.criterion = getattr(nn, self.criterion_class)(**self.criterion_kwargs)
         self.training_metrics = {
             mname: getattr(train.metrics, mclass) if isinstance(mclass, str) else mclass
@@ -249,6 +259,7 @@ class ClassifierTrainer:
         print('Model:')
         print(self.model)
         print('Train dataset: {}'.format(self.train_dataset.dataset))
+        print('Val dataset: {}'.format(self.val_dataset.dataset))
         print('Test dataset: {}'.format(self.test_dataset))
         print('Train/val lengths: {} / {}'.format(len(self.train_dataset), len(self.val_dataset)))
         print('Train/val/test dataloaders: {} / {} / {}'.format(self.train_dataloader, self.val_dataloader, self.test_dataloader))
@@ -341,12 +352,84 @@ class ClassifierTrainer:
                             **{'best_test_%s'%(key): val for key, val in test_erv.items()}
                         })
         
-def generate_figs(trial_dir):
+    def eval_trained_model(
+        self,
+        model_path,
+        results_save_dir=None,
+        augmented_datapoints_to_try=None,
+        calibrate_temperature=True
+    ):
+        print('Initializing model for evaluation ...')
+        self.reset()
+        print('Loading model saved at {} ...'.format(model_path))
+        model_state_dict = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(model_state_dict)
+        
+        if calibrate_temperature:
+            if not hasattr(self.model, 'temperature_scale'):
+                self.model = temperature_scaling.ModelWithTemperature(self.model).to(self.device)
+            print('Calibrating temperature using validation dataset ...')
+            self.val_dataset.dataset.transform = self.test_time_sample_transform
+            ct_rv = temperature_scaling.calibrate_temperature(self.model, self.val_dataloader, self.device)
+            print('\tDone.')
+            print('\tFinal temperature: {}'.format(ct_rv['final_temperature']))
+            print('\tNegative log-likelihood: {} -> {}'.format(ct_rv['pre_nll'], ct_rv['post_nll']))
+            print('\tExpected confidence error: {} -> {}'.format(ct_rv['pre_ece'], ct_rv['post_ece']))
+        
+        self.test_dataset.return_metadata = True
+        if augmented_datapoints_to_try is not None:
+            self.test_dataset.transform = self.test_time_sample_transform
+            logits, metadata = get_logits_on_dataloader(self.model, self.test_dataloader, self.device)
+            logits = np.expand_dims(logits, axis=1)
+            mean_traces_to_disclosure, traces = {}, {}
+            ttd, trace = self.test_dataset.eval_attack_efficacy(logits, metadata)
+            mean_traces_to_disclosure[1] = ttd
+            traces[1] = trace
+            for idx in range(augmented_datapoints_to_try-1):
+                logits_, _ = get_logits_on_dataloader(self.model, self.test_dataloader, self.device)
+                logits_ = np.expand_dims(logits_, axis=1)
+                logits = np.concatenate([logits, logits_], axis=1)
+                ttd, trace = self.test_dataset.eval_attack_efficacy(logits, metadata)
+                mean_traces_to_disclosure[idx+2] = ttd
+                traces[idx+2] = trace
+        else:
+            logits, metadata = get_logits_on_dataloader(self.model, self.test_dataloader, self.device)
+            mean_traces_to_disclosure, traces = self.test_dataset.eval_attack_efficacy(logits, metadata)
+        
+        print('Computed mean traces to disclosure: {}'.format(mean_traces_to_disclosure))
+        if results_save_dir is not None:
+            with open(os.path.join(results_save_dir, 'eval.pickle'), 'wb') as F:
+                pickle.dump({
+                    'mean_traces_to_disclosure': mean_traces_to_disclosure,
+                    'rank_over_time': traces
+                }, F)
+        
+@torch.no_grad()
+def get_logits_on_dataloader(model, dataloader, device):
+    model.eval()
+    collected_logits, collected_metadata = [], {}
+    for batch in tqdm(dataloader):
+        traces, _, metadata = batch
+        traces = traces.to(device)
+        logits = model(traces)
+        logits = logits.detach().cpu().numpy()
+        collected_logits.append(logits)
+        for key, val in metadata.items():
+            if not key in collected_metadata.keys():
+                collected_metadata[key] = []
+            collected_metadata[key].append(val)
+    collected_logits = np.concatenate(collected_logits, axis=0)
+    collected_metadata = {key: np.concatenate(val, axis=0) for key, val in collected_metadata.items()}
+    return collected_logits, collected_metadata
+        
+def generate_training_figs(trial_dir):
     # Load results into memory
     results_dir = os.path.join(trial_dir, 'results')
     epochs = []
-    collected_results = {'train': [], 'val': [], 'test': []}
+    collected_results = {'train': {}, 'val': {}, 'test': {}}
     for filename in os.listdir(results_dir):
+        if not filename.split('_')[0] == 'epoch':
+            continue
         epoch = int(filename.split('_')[-1].split('.')[0])
         epochs.append(epoch)
         with open(os.path.join(results_dir, filename), 'rb') as F:
@@ -365,15 +448,14 @@ def generate_figs(trial_dir):
     
     # Plot results
     num_metrics = len(collected_results['train'])
-    assert num_metrics == len(collected_results['val']) == len(collected_results['test'])
     rows = int(np.sqrt(num_metrics))
-    cols = int(np.ceil(num_metrics))
+    cols = int(np.ceil(num_metrics/rows))
     (fig, axes) = plt.subplots(rows, cols, figsize=(4*cols, 4*rows))
     for phase in ['train', 'val']:
         for ax, (metric_name, metric_trace) in zip(axes.flatten(), collected_results[phase].items()):
             ax.plot(
                 epochs, metric_trace,
-                color='blue', linestyle={'train': '--', 'val': '-'}[phase], label='{}_{}'.format(phase, metric_name)
+                color='blue', linestyle={'train': '--', 'val': '-'}[phase], label='{}'.format(phase)
             )
             if ax.get_ylabel() != 'metric_name':
                 ax.set_ylabel(metric_name)
@@ -383,18 +465,36 @@ def generate_figs(trial_dir):
         ax.grid(True)
         
     # Save results
+    plt.tight_layout()
     fig.savefig(os.path.join(trial_dir, 'figures', 'collected_results.pdf'))
 
-def construct_transform(transforms):
-    constructed_transforms = []
-    for val in transforms:
-        if isinstance(val, list):
-            tf, tf_kwargs = val
-        else:
-            tf = val
-            tf_kwargs = {}
-        if isinstance(tf, str):
-            tf = getattr(datasets.transforms, tf)
-        constructed_transforms.append(tf(**tf_kwargs))
-    composed_transform = Compose(constructed_transforms)
-    return composed_transform
+def generate_eval_figs(trial_dir):
+    results_dir = os.path.join(trial_dir, 'results')
+    with open(os.path.join(results_dir, 'eval.pickle'), 'rb') as F:
+        results = pickle.load(F)
+    rank_over_time = results['rank_over_time']
+    if not isinstance(rank_over_time, dict):
+        rank_over_time = {1: rank_over_time}
+    fig, ax = plt.subplots(figsize=(4, 4))
+    for num_aug, rot_val in rank_over_time.items():
+        traces_seen = np.arange(1, rot_val.shape[1]+1)
+        p = ax.plot(traces_seen, np.mean(rot_val, axis=0), linestyle='--', label='{} aug traces'.format(num_aug))
+        ax.fill_between(traces_seen, np.min(rot_val, axis=0), np.max(rot_val, axis=0), color=p[0].get_color(), alpha=0.25)
+    ax.set_xlabel('Traces seen')
+    ax.set_ylabel('Rank of correct trace')
+    ax.set_xscale('log')
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(os.path.join(trial_dir, 'figures', 'rank_over_time.pdf'))
+    
+    mttd = results['mean_traces_to_disclosure']
+    if isinstance(mttd, dict):
+        fig, ax = plt.subplots(figsize=(4, 4))
+        for num_aug, mttd_val in mttd.items():
+            ax.plot(num_aug, mttd_val, '.', color='blue')
+        ax.set_xlabel('Number of augmented datapoints')
+        ax.set_ylabel('Mean traces to disclosure')
+        ax.set_yscale('log')
+        plt.tight_layout()
+        fig.savefig(os.path.join(trial_dir, 'figures', 'mean_traces_to_disclosure.pdf'))
+    

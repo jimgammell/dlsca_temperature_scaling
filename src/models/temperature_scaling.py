@@ -4,28 +4,32 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-class ModelWithTemperature(nn.Module):
-    def __init__(self, model):
-        super().__init__()
-        self.base_model = model
-        self.temperature = nn.Parameter(torch.ones(1)*1.5)
-        self.name = self.model.name
+def decorate_model(model):
+    class ModelWithTemperature(model.__class__):
+        def init_temp(self):
+            self.pre_temperature = nn.Parameter(torch.ones(1)*1.5)
+        
+        def get_temperature(self):
+            temperature = nn.functional.softplus(self.pre_temperature)
+            return temperature
+        
+        def temperature_scale(self, logits):
+            temperature = self.get_temperature()
+            temperature = temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
+            return logits / temperature
+        
+        def forward(self, *args, dont_rescale_temperature=False, **kwargs):
+            logits = super().__call__(*args, **kwargs)
+            if not self.training and not(dont_rescale_temperature):
+                logits = self.temperature_scale(logits)
+            return logits
+        
+        def extra_repr(self):
+            return super().extra_repr() + '\tRescaling temperature to {}.'.format(self.get_temperature())
     
-    def temperature_scale(self, logits):
-        temperature = self.temperature.unsqueeze(1).expand(logits.size(0), logits.size(1))
-        temperature = nn.functional.softplus(temperature)
-        return logits / temperature
-    
-    def forward(self, x, dont_rescale_temperature=False):
-        logits = self.base_model(x)
-        if not(self.base_model.training) and not(dont_rescale_temperature):
-            logits = self.temperature_scale(logits)
-        return logits
-    
-    def extra_repr(self):
-        return self.base_model.extra_repr() + '\nUsing temperature rescaling with T={}'.format(
-            nn.functional.softplus(self.temperature).item()
-        )
+    ModelWithTemperature.__name__ = model.__class__.__name__
+    model.__class__ = ModelWithTemperature
+    model.init_temp()
 
 class ECELoss(nn.Module): # expected calibration error
     def __init__(self, n_bins=15):
@@ -69,21 +73,25 @@ def calibrate_temperature(model, dataloader, device):
     pre_nll = nll_criterion(logits, labels).item()
     pre_ece = ece_criterion(logits, labels).item()
     
-    optimizer = optim.LBFGS([model.temperature], lr=0.01, max_iter=50)
+    optimizer = optim.LBFGS([model.pre_temperature], lr=0.01, max_iter=50)
     def closure():
         optimizer.zero_grad()
         loss = nll_criterion(model.temperature_scale(logits), labels)
         loss.backward()
         return loss
-    temps = [model.temperature.item()]
+    temps = [model.get_temperature().item()]
     optimizer.step(closure)
-    temps.append(model.temperature.item())
+    temps.append(model.get_temperature().item())
     while np.abs(temps[-1] - temps[-2]) > 1e-5:
         optimizer.step(closure)
-        temps.append(model.temperature.item())
+        temps.append(model.get_temperature().item())
     
     post_nll = nll_criterion(model.temperature_scale(logits), labels).item()
     post_ece = ece_criterion(model.temperature_scale(logits), labels).item()
     
-    return {'final_temperature': model.temperature.item(), 'pre_nll': pre_nll, 'post_nll': post_nll, 'pre_ece': pre_ece, 'post_ece': post_ece}
+    return {
+        'final_temperature': model.get_temperature().item(),
+        'pre_nll': pre_nll, 'post_nll': post_nll,
+        'pre_ece': pre_ece, 'post_ece': post_ece
+    }
     
