@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import time
 from tqdm import tqdm
@@ -13,10 +14,10 @@ import config
 from config import printl as print
 import train, train.common
 import datasets, datasets.common, datasets.transforms
-import models, models.common, models.parameter_averaging
+import models, models.common, models.parameter_averaging, models.temperature_scaling
 from datasets.transforms import construct_transform
 
-class CycleGANTrainer:
+class GANTrainer:
     def __init__(
         self,
         dataset_name=None, dataset_kwargs={},
@@ -24,16 +25,17 @@ class CycleGANTrainer:
         generator_name=None, generator_kwargs={},
         discriminator_optimizer_class=None, discriminator_optimizer_kwargs={},
         generator_optimizer_class=None, generator_optimizer_kwargs={},
-        perturbation_l1_penalty=1.0,
-        cyclical_l1_penalty=1.0,
-        parameter_drift_penalty=0.0,
+        pert_l1_decay=0.0,
         disc_steps_per_gen_step=1,
+        cal_temperature=False,
         train_sample_transforms=[], train_target_transforms=[], train_batch_transforms=[],
         eval_sample_transforms=[], eval_target_transforms=[], eval_batch_transforms=[],
+        pretrained_disc_path=None,
         seed=None,
         device=None,
         batch_size=32,
         val_split_prop=0.2,
+        pretrain_epochs=0,
         using_wandb=False,
         selection_metric=None, maximize_selection_metric=False,
         **kwargs
@@ -53,9 +55,9 @@ class CycleGANTrainer:
         assert isinstance(self.discriminator_optimizer_kwargs, dict)
         assert hasattr(optim, self.generator_optimizer_class)
         assert isinstance(self.generator_optimizer_kwargs, dict)
-        assert isinstance(self.perturbation_l1_penalty, float)
-        assert isinstance(self.cyclical_l1_penalty, float)
-        assert isinstance(self.parameter_drift_penalty, float)
+        assert isinstance(self.pert_l1_decay, float)
+        assert isinstance(self.cal_temperature, bool)
+        assert isinstance(self.disc_steps_per_gen_step, float)
         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
                         self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms]:
             assert isinstance(tf_list, list)
@@ -64,11 +66,14 @@ class CycleGANTrainer:
                 else hasattr(datasets.transforms, tf[0])
                 for tf in tf_list
             )
+        if pretrained_disc_path is not None:
+            assert isinstance(pretrained_disc_path, str)
         assert (self.seed is None) or isinstance(self.seed, int)
         assert self.device in [None, 'cpu', 'cuda', *['cuda:%d'%(dev_idx) for dev_idx in range(torch.cuda.device_count())]]
         assert isinstance(self.batch_size, int) and (self.batch_size > 0)
         assert isinstance(self.val_split_prop, float) and (0.0 < self.val_split_prop < 1.0)
         assert isinstance(self.using_wandb, bool)
+        assert isinstance(self.pretrain_epochs, int)
     
     def reset(self, epochs=None):
         if self.device is None:
@@ -100,13 +105,19 @@ class CycleGANTrainer:
         self.train_dataloader = datasets.common.DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True)
         self.val_dataloader = datasets.common.DataLoader(self.val_dataset, batch_size=self.batch_size, shuffle=False)
         self.test_dataloader = datasets.common.DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
+        self.cal_dataloader = datasets.common.DataLoader(
+            torch.utils.data.ConcatDataset([
+                self.val_dataset for _ in range(int(np.ceil(len(self.train_dataset)/len(self.val_dataset))))
+            ]), batch_size=self.batch_size, shuffle=True
+        )
         self.generator = models.construct_model(
             self.generator_name, input_shape=self.train_dataset.dataset.data_shape, **self.generator_kwargs
         )
-        models.parameter_averaging.decorate_model(self.generator)
         self.discriminator = models.construct_model(
             self.discriminator_name, input_shape=self.train_dataset.dataset.data_shape, **self.discriminator_kwargs
         )
+        models.temperature_scaling.decorate_model(self.discriminator)
+        self.discriminator_temp_optimizer = optim.SGD([self.discriminator.pre_temperature], lr=1e-1, momentum=0.9)
         if not hasattr(self.generator, 'input_shape'):
             setattr(self.generator, 'input_shape', self.train_dataset.dataset.data_shape)
         if not hasattr(self.discriminator, 'input_shape'):
@@ -117,120 +128,176 @@ class CycleGANTrainer:
             self.generator.parameters(), **self.generator_optimizer_kwargs
         )
         self.discriminator_optimizer = getattr(optim, self.discriminator_optimizer_class)(
-            self.discriminator.parameters(), **self.discriminator_optimizer_kwargs
+            [p for pname, p in self.discriminator.named_parameters() if pname != 'pre_temperature'],
+            **self.discriminator_optimizer_kwargs
         )
-    
+        if self.pretrained_disc_path is not None:
+            trial_dir = os.path.join(config.RESULTS_BASE_DIR, self.pretrained_disc_path)
+            if os.path.split(trial_dir)[-1].split('_')[0] != 'trial':
+                assert os.path.isdir(trial_dir)
+                available_trials = [int(f.split('_')[-1]) for f in os.listdir(trial_dir)]
+                trial_idx = max(available_trials)
+                trial_dir = os.path.join(trial_dir, 'trial_%d'%(trial_idx))
+            model_path = os.path.join(trial_dir, 'models', 'best_model.pt')
+            assert os.path.exists(model_path)
+            config_path = os.path.join(trial_dir, 'settings.json')
+            assert os.path.exists(config_path)
+            with open(config_path, 'r') as F:
+                settings = json.load(F)
+            self.pretrained_discriminator = models.construct_model(
+                settings['model_name'], input_shape=self.train_dataset.dataset.data_shape, **settings['model_kwargs']
+            ).to(self.device)
+            state_dict = torch.load(model_path, map_location=self.device)
+            self.pretrained_discriminator.load_state_dict(state_dict)
+        self.ece_criterion = models.temperature_scaling.ECELoss()
+            
+    def pretrain_step(
+        self,
+        train_batch, val_batch=None,
+        **kwargs
+    ):
+        start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
+        start.record()
+        
+        self.discriminator.train()
+        self.generator.train()
+        train_traces, train_labels = datasets.common.unpack_batch(train_batch, self.device)
+        if self.train_batch_transform is not None:
+            train_traces, train_labels = self.train_batch_transform((train_traces, train_labels))
+        if self.cal_temperature:
+            assert val_batch is not None
+            val_traces, val_labels = datasets.common.unpack_batch(val_batch, self.device)
+            if self.eval_batch_transform is not None:
+                val_traces, val_labels = self.eval_batch_transform((val_traces, val_labels))
+        batch_size = train_traces.size(0)
+        num_classes = 256
+        
+        perturbed_traces = self.generator(train_traces)
+        gen_train_loss = nn.functional.l1_loss(perturbed_traces, train_traces)
+        self.generator_optimizer.zero_grad(set_to_none=True)
+        gen_train_loss.backward()
+        self.generator_optimizer.step()
+        perturbed_traces = perturbed_traces.detach()
+        
+        d_train_logits = self.discriminator(perturbed_traces)
+        d_train_loss = nn.functional.cross_entropy(d_train_logits, train_labels)
+        self.discriminator_optimizer.zero_grad(set_to_none=True)
+        d_train_loss.backward()
+        self.discriminator_optimizer.step()
+        
+        if self.cal_temperature:
+            self.discriminator.eval()
+            logits = self.discriminator(val_traces)
+            d_cal_loss = nn.functional.cross_entropy(logits, val_labels)
+            self.discriminator_temp_optimizer.zero_grad()
+            d_cal_loss.backward()
+            self.discriminator_temp_optimizer.step()
+            d_cal_ece = self.ece_criterion(logits, val_labels)
+        
+        end.record()
+        torch.cuda.synchronize()
+        rv = {
+            'msec_per_batch': start.elapsed_time(end),
+            'd_temp': self.discriminator.get_temperature().item(),
+            'd_train_loss': d_train_loss.item(),
+            'd_train_acc': train.metrics.get_acc(d_train_logits, train_labels),
+            'gen_train_loss': gen_train_loss.item()
+        }
+        if self.cal_temperature:
+            rv.update({
+                'd_cal_loss': d_cal_loss.item(),
+                'd_cal_ece': d_cal_ece.item()
+            })
+        return rv
+            
     def train_step(
         self,
-        batch,
+        train_batch, val_batch=None,
         train_gen=True,
         train_disc=True
     ):
         start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
         start.record()
         
-        traces, labels = datasets.common.unpack_batch(batch, self.device)
+        self.discriminator.train()
+        self.generator.train()
+        train_traces, train_labels = datasets.common.unpack_batch(train_batch, self.device)
         if self.train_batch_transform is not None:
-            traces, labels = self.train_batch_transform((traces, labels))
-        labels_rec = torch.randint_like(labels, 256)
+            train_traces, train_labels = self.train_batch_transform((train_traces, train_labels))
+        if self.cal_temperature:
+            assert val_batch is not None
+            val_traces, val_labels = datasets.common.unpack_batch(val_batch, self.device)
+            if self.eval_batch_transform is not None:
+                val_traces, val_labels = self.eval_batch_transform((val_traces, val_labels))
+        batch_size = train_traces.size(0)
+        num_classes = 256
         
         if train_disc:
-            self.generator.eval()
-            self.discriminator.train()
-            
-            # Discriminator features from CNN feature extractor, to be shared with all heads
+            # d_train phase: update discriminator parameters to improve loss on a training batch
             with torch.no_grad():
-                traces_rec = self.generator(traces, labels_rec)
-            disc_features_orig = self.discriminator.extract_features(traces)
-            disc_features_rec = self.discriminator.extract_features(traces_rec)
-            
-            # Discriminator head which classifies the original traces
-            disc_logits_naive_leakage = self.discriminator.classify_naive_leakage(disc_features_orig)
-            disc_loss_naive_leakage = nn.functional.cross_entropy(disc_logits_naive_leakage, labels)
-            
-            # Discriminator head which classifies the reconstructed traces
-            disc_logits_adv_leakage = self.discriminator.classify_adversarial_leakage(disc_features_rec)
-            disc_loss_adv_leakage = nn.functional.cross_entropy(disc_logits_adv_leakage, labels)
-            
-            # Discriminator head which classifies traces as real or reconstructed, given access to the (reconstruction) label
-            disc_logits_orig_realism = self.discriminator.classify_realism(disc_features_orig, labels)
-            disc_logits_rec_realism = self.discriminator.classify_realism(disc_features_rec, labels_rec)
-            disc_loss_orig_realism = hinge_loss(disc_logits_orig_realism, 1)
-            disc_loss_rec_realism = hinge_loss(disc_logits_rec_realism, -1)
-            disc_loss_realism = disc_loss_orig_realism + disc_loss_rec_realism
-            
-            # Update discriminator parameters to make each of the above heads better at their job
-            disc_loss = disc_loss_naive_leakage + disc_loss_adv_leakage + disc_loss_realism
-            self.discriminator_optimizer.zero_grad()
-            disc_loss.backward()
+                perturbed_train_traces = self.generator(train_traces)
+            d_train_logits = self.discriminator(perturbed_train_traces)
+            d_train_loss = nn.functional.cross_entropy(d_train_logits, train_labels)
+            self.discriminator_optimizer.zero_grad(set_to_none=True)
+            d_train_loss.backward()
             self.discriminator_optimizer.step()
-            
-        if train_gen:
-            self.generator.train()
+
+        if self.cal_temperature:
+            # d_cal phase: update discriminator softmax temperature to improve loss on a validation batch
             self.discriminator.eval()
-            
-            # Compute the reconstructed and cyclically-reconstructed traces and the discriminator features for them
-            traces_rec = self.generator(traces, labels_rec)
-            traces_rec_rec = self.generator(traces_rec, labels)
-            disc_features_rec = self.discriminator.extract_features(traces_rec)
-            
-            # Check whether the naive discriminator leakage head assigns the intended labels to these traces
-            disc_logits_naive_leakage = self.discriminator.classify_naive_leakage(disc_features_rec)
-            gen_loss_naive_leakage = nn.functional.cross_entropy(disc_logits_naive_leakage, labels_rec)
-            
-            # Check whether the adversarial discriminator leakage head can determine the original leakage
-            disc_logits_adv_leakage = self.discriminator.classify_adversarial_leakage(disc_features_rec)
-            gen_loss_adv_leakage = nn.functional.cross_entropy(
-                disc_logits_adv_leakage, nn.functional.softmax(torch.zeros_like(disc_logits_adv_leakage), dim=-1)
-            ) # cross entropy with uniform distribution
-            
-            # Check whether the discriminator recognizes that these are fake traces
-            disc_logits_rec_realism = self.discriminator.classify_realism(disc_features_rec, labels_rec)
-            gen_loss_realism = -disc_logits_rec_realism.mean()
-            
-            # Compute the auxillary loss terms
-            gen_perturbation_l1_loss = nn.functional.l1_loss(traces, traces_rec)
-              # Want to perturb as-few samples as possible
-            gen_cyclical_l1_loss = nn.functional.l1_loss(traces, traces_rec_rec)
-              # Want to be able to reconstruct original trace, given original labels
-            gen_parameter_drift_loss = self.generator.get_parameter_drift_loss()
-              # Improve stability by penalizing movement in the generator parameters relative to their average value
-            
-            gen_loss = gen_loss_naive_leakage + gen_loss_adv_leakage + gen_loss_realism + \
-                       self.perturbation_l1_penalty*gen_perturbation_l1_loss + \
-                       self.cyclical_l1_penalty*gen_cyclical_l1_loss + \
-                       self.parameter_drift_penalty*gen_parameter_drift_loss
-            self.generator_optimizer.zero_grad()
-            gen_loss.backward()
+            with torch.no_grad():
+                perturbed_val_traces = self.generator(val_traces)
+            logits = self.discriminator(perturbed_val_traces)
+            d_cal_loss = nn.functional.cross_entropy(logits, val_labels)
+            self.discriminator_temp_optimizer.zero_grad()
+            d_cal_loss.backward()
+            self.discriminator_temp_optimizer.step()
+            d_cal_ece = self.ece_criterion(logits, val_labels)
+        
+        if train_gen:
+            # perturb phase: find a new trace which confuses the discriminator
+            #   (while trying to keep L1 distance from original trace small)
+            perturbed_train_traces.requires_grad = True
+            perturb_opt = optim.LBFGS([perturbed_train_traces], lr=1e-1)
+            def closure():
+                perturb_opt.zero_grad()
+                perturb_loss = nn.functional.cross_entropy(
+                    self.discriminator(perturbed_train_traces),
+                    torch.ones(batch_size, num_classes, dtype=torch.float, device=self.device)/num_classes
+                ) + self.pert_l1_decay*nn.functional.l1_loss(perturbed_train_traces, train_traces)
+                perturb_loss.backward()
+                return perturb_loss
+            num_perturbation_steps = 1
+            prev_val = perturbed_train_traces.detach().clone()
+            perturb_opt.step(closure)
+            while (num_perturbation_steps < 10) and ((perturbed_train_traces - prev_val).norm(2) > 1e-2):
+                prev_val = perturbed_train_traces.clone()
+                perturb_opt.step(closure)
+                num_perturbation_steps += 1
+
+            # g_train phase: update generator parameters so that it outputs the perturbed trace
+            gen_perturbed_traces = self.generator(train_traces)
+            gen_train_loss = nn.functional.l1_loss(gen_perturbed_traces, perturbed_train_traces.detach())
+            self.generator_optimizer.zero_grad(set_to_none=True)
+            gen_train_loss.backward()
             self.generator_optimizer.step()
-            if self.parameter_drift_penalty > 0:
-                self.generator.update_average_parameters()
         
         end.record()
         torch.cuda.synchronize()
-        # Record the training metrics. Doing this all at once to avoid synchronizing the CPU + GPU in the middle of the batch.
-        rv = {}
+        rv = {
+            'msec_per_batch': start.elapsed_time(end),
+            'd_temp': self.discriminator.get_temperature().item()
+        }
         if train_disc:
-            rv.update({
-                'disc_loss_naive_leakage': disc_loss_naive_leakage.item(),
-                'disc_loss_adv_leakage': disc_loss_adv_leakage.item(),
-                'disc_loss_realism': disc_loss_realism.item(),
-                'disc_loss': disc_loss.item(),
-                'disc_acc_realism': 0.5*train.metrics.get_hinge_acc(disc_logits_orig_realism, 1) + 0.5*train.metrics.get_hinge_acc(disc_logits_rec_realism, -1),
-                'disc_acc_naive_leakage': train.metrics.get_acc(disc_logits_naive_leakage, labels),
-                'disc_acc_adv_leakage': train.metrics.get_acc(disc_logits_adv_leakage, labels)
-            })
+            rv['d_train_loss'] = d_train_loss.item()
+            rv['d_train_acc'] = train.metrics.get_acc(d_train_logits, train_labels)
+        if self.cal_temperature:
+            rv['d_cal_loss'] = d_cal_loss.item()
+            rv['d_cal_ece'] = d_cal_ece.item()
         if train_gen:
-            rv.update({
-                'gen_loss_naive_leakage': gen_loss_naive_leakage.item(),
-                'gen_loss_adv_leakage': gen_loss_adv_leakage.item(),
-                'gen_loss_realism': gen_loss_realism.item(),
-                'gen_perturbation_l1_loss': gen_perturbation_l1_loss.item(),
-                'gen_cyclical_l1_loss': gen_cyclical_l1_loss.item(),
-                'gen_parameter_drift_loss': gen_parameter_drift_loss.item(),
-                'gen_loss': gen_loss.item()
-            })
-        rv.update({'time_per_batch': start.elapsed_time(end)})
+            rv['perturbation_steps'] = num_perturbation_steps
+            rv['perturbation_dist'] = (gen_perturbed_traces - perturbed_train_traces).norm(p='fro').item()
+            rv['gen_train_loss'] = gen_train_loss.item()
         return rv
     
     @torch.no_grad()
@@ -238,82 +305,61 @@ class CycleGANTrainer:
         start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
         start.record()
         
-        rv = train.common.ResultsDict()
         self.generator.eval()
         self.discriminator.eval()
-        
         traces, labels = datasets.common.unpack_batch(batch, self.device)
         if self.eval_batch_transform is not None:
             traces, labels = self.eval_batch_transform((traces, labels))
-        labels_rec = torch.randint_like(labels, 256)
+        batch_size = traces.size(0)
+        num_classes = 256
         
-        traces_rec = self.generator(traces, labels_rec)
-        traces_rec_rec = self.generator(traces_rec, labels)
-        
-        disc_features_orig = self.discriminator.extract_features(traces)
-        disc_features_rec = self.discriminator.extract_features(traces_rec)
-        
-        disc_logits_naive_leakage = self.discriminator.classify_naive_leakage(disc_features_orig)
-        disc_loss_naive_leakage = nn.functional.cross_entropy(disc_logits_naive_leakage, labels)
-        disc_logits_naive_leakage = self.discriminator.classify_naive_leakage(disc_features_rec)
-        gen_loss_naive_leakage = nn.functional.cross_entropy(disc_logits_naive_leakage, labels_rec)
-        
-        disc_logits_adv_leakage = self.discriminator.classify_adversarial_leakage(disc_features_rec)
-        disc_loss_adv_leakage = nn.functional.cross_entropy(disc_logits_adv_leakage, labels)
-        gen_loss_adv_leakage = nn.functional.cross_entropy(
-            disc_logits_adv_leakage, nn.functional.softmax(torch.zeros_like(disc_logits_adv_leakage), dim=-1)
+        perturbed_traces = self.generator(traces)
+        disc_logits = self.discriminator(perturbed_traces)
+        disc_loss = nn.functional.cross_entropy(disc_logits, labels)
+        disc_ece = self.ece_criterion(disc_logits, labels)
+        perturbation_l1_loss = nn.functional.l1_loss(perturbed_traces, traces)
+        perturbation_confusion_loss = nn.functional.cross_entropy(
+            self.discriminator(perturbed_traces),
+            torch.ones(batch_size, num_classes, dtype=torch.float, device=self.device)/num_classes
         )
         
-        disc_logits_orig_realism = self.discriminator.classify_realism(disc_features_orig, labels)
-        disc_logits_rec_realism = self.discriminator.classify_realism(disc_features_rec, labels_rec)
-        disc_loss_orig_realism = hinge_loss(disc_logits_orig_realism, 1)
-        disc_loss_rec_realism = hinge_loss(disc_logits_rec_realism, -1)
-        disc_loss_realism = disc_loss_orig_realism + disc_loss_rec_realism
-        gen_loss_realism = -disc_logits_rec_realism.mean()
-        
-        gen_perturbation_l1_loss = nn.functional.l1_loss(traces, traces_rec)
-        gen_cyclical_l1_loss = nn.functional.l1_loss(traces, traces_rec_rec)
-        gen_parameter_drift_loss = self.generator.get_parameter_drift_loss()
-        
-        disc_loss = disc_loss_naive_leakage + disc_loss_adv_leakage + disc_loss_realism
-        gen_loss = gen_loss_naive_leakage + gen_loss_adv_leakage + gen_loss_realism +\
-                   self.perturbation_l1_penalty*gen_perturbation_l1_loss +\
-                   self.cyclical_l1_penalty*gen_cyclical_l1_loss +\
-                   self.parameter_drift_penalty*gen_parameter_drift_loss
+        if hasattr(self, 'pretrained_discriminator'):
+            pdisc_logits = self.pretrained_discriminator(perturbed_traces)
+            pdisc_loss = nn.functional.cross_entropy(pdisc_logits, labels)
         
         end.record()
         torch.cuda.synchronize()
-        
         rv = {
-            'disc_loss_naive_leakage': disc_loss_naive_leakage.item(),
-            'disc_loss_adv_leakage': disc_loss_adv_leakage.item(),
-            'disc_loss_realism': disc_loss_realism.item(),
-            'disc_loss': disc_loss.item(),
-            'disc_acc_realism': 0.5*train.metrics.get_hinge_acc(disc_logits_orig_realism, 1) + 0.5*train.metrics.get_hinge_acc(disc_logits_rec_realism, -1),
-            'disc_acc_naive_leakage': train.metrics.get_acc(disc_logits_naive_leakage, labels),
-            'disc_acc_adv_leakage': train.metrics.get_acc(disc_logits_adv_leakage, labels),
-            'gen_loss_naive_leakage': gen_loss_naive_leakage.item(),
-            'gen_loss_adv_leakage': gen_loss_adv_leakage.item(),
-            'gen_loss_realism': gen_loss_realism.item(),
-            'gen_perturbation_l1_loss': gen_perturbation_l1_loss.item(),
-            'gen_cyclical_l1_loss': gen_cyclical_l1_loss.item(),
-            'gen_parameter_drift_loss': gen_parameter_drift_loss.item(),
-            'gen_loss': gen_loss.item(),
-            'time_per_batch': start.elapsed_time(end)
+            'msec_per_batch': start.elapsed_time(end),
+            'd_temp': self.discriminator.get_temperature().item(),
+            'd_train_loss': disc_loss.item(),
+            'd_train_acc': train.metrics.get_acc(disc_logits, labels),
+            'd_cal_ece': disc_ece.item(),
+            'perturbation_l1_loss': perturbation_l1_loss.item(),
+            'perturbation_confusion_loss': perturbation_confusion_loss.item()
         }
+        if hasattr(self, 'pretrained_discriminator'):
+            rv.update({
+                'pdisc_loss': pdisc_loss.item(),
+                'pdisc_acc': train.metrics.get_acc(pdisc_logits, labels)
+            })
         return rv
     
-    def train_epoch(self, **kwargs):
+    def train_epoch(self, pretrain=False, **kwargs):
         disc_steps = gen_steps = 0
         rv = train.metrics.ResultsDict()
-        for bidx, batch in enumerate(tqdm(self.train_dataloader)):
+        if pretrain:
+            step_fn = self.pretrain_step
+        else:
+            step_fn = self.train_step
+        for bidx, (batch, val_batch) in enumerate(zip(tqdm(self.train_dataloader), self.cal_dataloader)):
             if self.disc_steps_per_gen_step > 1:
                 disc_steps += 1
                 train_disc = True
                 train_gen = disc_steps >= self.disc_steps_per_gen_step
                 if train_gen:
                     disc_steps -= self.disc_steps_per_gen_step
-            elif 1/disc_steps_per_gen_step > 1:
+            elif 1/self.disc_steps_per_gen_step > 1:
                 gen_steps += 1
                 train_gen = True
                 train_disc = gen_steps >= 1/self.disc_steps_per_gen_step
@@ -321,7 +367,7 @@ class CycleGANTrainer:
                     gen_steps -= 1/self.disc_steps_per_gen_step
             else:
                 train_gen = train_disc = True
-            step_rv = self.train_step(batch, train_gen=train_gen, train_disc=train_disc, **kwargs)
+            step_rv = step_fn(batch, val_batch=val_batch, train_gen=train_gen, train_disc=train_disc, **kwargs)
             rv.update(step_rv)
         rv.reduce(np.mean)
         return rv
@@ -367,6 +413,26 @@ class CycleGANTrainer:
         else:
             starting_epoch = 0
         
+        print('Starting pretraining.')
+        for epoch_idx in range(-self.pretrain_epochs, 0):
+            print('\nStarting epoch {} ...'.format(epoch_idx))
+            train_erv = self.train_epoch(pretrain=True)
+            print('Training results:')
+            for key, val in train_erv.items():
+                print('\t{}: {}'.format(key, val))
+            val_erv = self.eval_epoch(self.val_dataloader)
+            print('Validation results:')
+            for key, val in val_erv.items():
+                print('\t{}: {}'.format(key, val))
+            test_erv = self.eval_epoch(self.test_dataloader)
+            print('Test results:')
+            for key, val in test_erv.items():
+                print('\t{}: {}'.format(key, val))
+            rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
+            if self.using_wandb:
+                wandb.log(rv, step=epoch_idx)
+        
+        print('Starting training.')
         best_metric = -np.inf
         for epoch_idx in range(starting_epoch, epochs):
             print('\nStarting epoch {} ...'.format(epoch_idx))

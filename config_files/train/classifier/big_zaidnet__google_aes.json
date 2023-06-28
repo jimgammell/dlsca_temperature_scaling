@@ -1,5 +1,5 @@
 {
-    "save_dir": "zaidnet_ad100__google_tinyaes",
+    "save_dir": "big_zaidnet__google_aes",
     "dataset_name": "GoogleTinyAES",
     "dataset_kwargs": {
         "target_byte": 7,

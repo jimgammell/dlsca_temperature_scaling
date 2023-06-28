@@ -1,22 +1,20 @@
 {
-    "save_dir": "zaidnet_ad100__google_tinyaes",
+    "save_dir": "dcgan_disc__google_tinyaes",
     "dataset_name": "GoogleTinyAES",
     "dataset_kwargs": {
         "target_byte": 7,
         "interval_to_use": [0, 20000],
         "target_attack_point": "sub_bytes_out"
     },
-    "model_name": "BigZaidNet",
+    "model_name": "DCGAN__Discriminator",
     "model_kwargs": {
-        "pooling_method": "avgpool",
-        "conv_stem": false
     },
     "optimizer_class": "Adam",
     "criterion_class": "CrossEntropyLoss",
     "use_sam": false,
     "lr_scheduler_class": "OneCycleLR",
     "lr_scheduler_kwargs": {
-        "max_lr": 1e-3,
+        "max_lr": 4e-4,
         "cycle_momentum": false,
         "pct_start": 0.05,
         "div_factor": 1e4,
@@ -27,9 +25,7 @@
     "train_sample_transforms": [
         "ToFloatTensor",
         ["Downsample", {"downsample_ratio": 4}],
-        ["Normalize", {"min": -1.026, "max": 0.9854}],
-        ["RandomCrop", {"length_to_remove": 10}],
-        ["AddGaussianNoise", {"noise_stdev": 0.1}]
+        ["Normalize", {"min": -1.026, "max": 0.9854}]
     ],
     "train_target_transforms": [
         "ToLongTensor",
@@ -44,7 +40,7 @@
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "total_epochs": 100,
+    "total_epochs": 50,
     "batch_size": 64,
     "val_split_prop": 0.2,
     "training_metrics": {

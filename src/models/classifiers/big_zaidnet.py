@@ -134,6 +134,7 @@ class BigZaidNet(VerboseModule):
         input_shape,
         fe_blocks=3,
         mlp_blocks=3,
+        kernel_size=21,
         mlp_dims=256,
         pooling_method='avgpool',
         conv_stem=False
@@ -142,22 +143,22 @@ class BigZaidNet(VerboseModule):
         
         if conv_stem:
             initial_channels = mlp_dims // 2**(fe_blocks)
-            self.stem = Stem(input_shape[0], initial_channels, kernel_size=11)
+            self.stem = Stem(input_shape[0], initial_channels, kernel_size=kernel_size)
             self.feature_extractor = nn.Sequential(
-                *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11,
+                *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), kernel_size,
                           pooling_method='none' if (n==0 and pooling_method == 'aa_sconv') else pooling_method
                          )
                   for n in range(fe_blocks)]
             )
         else:
             initial_channels = mlp_dims // 2**(fe_blocks-1)
-            self.stem = nn.MaxPool1d(4)
+            #self.stem = nn.MaxPool1d(4)
             self.feature_extractor = nn.Sequential(
                 FEBlock(
-                    input_shape[0], initial_channels, 11,
+                    input_shape[0], initial_channels, kernel_size,
                     pooling_method='none' if pooling_method == 'aa_sconv' else pooling_method
                 ),
-                *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), 11, pooling_method=pooling_method)
+                *[FEBlock(initial_channels*2**n, initial_channels*2**(n+1), kernel_size, pooling_method=pooling_method)
                   for n in range(fe_blocks-1)]
             )
         self.global_average_pooling = GlobalAveragePooling()
@@ -172,7 +173,10 @@ class BigZaidNet(VerboseModule):
         self.name = 'BigZaidNet'
         
     def init_weights_(self, module):
-        if isinstance(module, (nn.Conv1d, nn.Linear)):
+        if isinstance(module, nn.Conv1d):
+            nn.init.kaiming_uniform_(module.weight, nonlinearity='selu', mode='fan_in')
+            module.bias.data.zero_()
+        elif isinstance(module, nn.Linear):
             nn.init.kaiming_uniform_(module.weight, nonlinearity='linear', mode='fan_in')
             module.bias.data.zero_()
         elif isinstance(module, nn.BatchNorm1d):
@@ -180,7 +184,7 @@ class BigZaidNet(VerboseModule):
             module.bias.data.zero_()
         
     def forward(self, x):
-        x = self.stem(x)
+        #x = self.stem(x)
         x = self.feature_extractor(x)
         x = self.global_average_pooling(x)
         x = self.multilayer_perceptron(x)

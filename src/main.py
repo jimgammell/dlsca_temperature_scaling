@@ -11,7 +11,7 @@ import config
 from config import printl as print
 import resources
 from train.classifier import ClassifierTrainer, generate_training_figs, generate_eval_figs
-from train.cycle_gan import CycleGANTrainer
+from train.weird_gan import GANTrainer
 
 def test():
     from models import test as models_test
@@ -55,12 +55,12 @@ def gan_training_run(settings, device='cpu', print_to_terminal=False):
         config.specify_log_file(os.path.join(save_dir, 'log.txt'))
     with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
         json.dump(settings, F, indent=2)
-    trainer = CycleGANTrainer(using_wandb=False, **settings)
+    trainer = GANTrainer(using_wandb=False, **settings)
     trainer.train_model(
         settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir
     )
 
-def eval_run(trial_dir, device='cpu', generate_figs=False):
+def eval_run(trial_dir, device='cpu', generate_figs=False, print_to_terminal=False):
     if hasattr(device, '__getitem__'):
         device = device[0]
     model_path = os.path.join(trial_dir, 'models', 'best_model.pt')
@@ -72,7 +72,8 @@ def eval_run(trial_dir, device='cpu', generate_figs=False):
     settings['device'] = device
     save_dir = os.path.join(trial_dir, 'results')
     os.makedirs(save_dir, exist_ok=True)
-    #config.specify_log_file(os.path.join(trial_dir, 'eval_log.txt'))
+    if not print_to_terminal:
+        config.specify_log_file(os.path.join(trial_dir, 'eval_log.txt'))
     trainer = ClassifierTrainer(using_wandb=False, **settings)
     trainer.eval_trained_model(model_path, results_save_dir=save_dir, augmented_datapoints_to_try=None)
     if generate_figs:
@@ -242,7 +243,7 @@ def main():
             available_trials = [int(f.split('_')[-1]) for f in os.listdir(trial_dir)]
             trial_idx = max(available_trials)
             trial_dir = os.path.join(trial_dir, 'trial_%d'%(trial_idx))
-        eval_run(trial_dir, generate_figs=args.generate_figs, device=args.devices)
+        eval_run(trial_dir, generate_figs=args.generate_figs, device=args.devices, print_to_terminal=args.print_to_terminal)
     for trial_name in args.generate_figs_post:
         trial_dir = os.path.join(config.RESULTS_BASE_DIR, trial_name)
         if os.path.split(trial_dir)[-1].split('_')[0] != 'trial':

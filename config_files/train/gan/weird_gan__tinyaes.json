@@ -1,13 +1,16 @@
 {
-    "save_dir": "stargan__tinyaes",
+    "save_dir": "weird_gan__tinyaes",
     "dataset_name": "GoogleTinyAES",
     "dataset_kwargs": {
         "target_byte": 7,
         "interval_to_use": [0, 20000],
         "target_attack_point": "sub_bytes_out"
     },
-    "discriminator_name": "StarGAN__Discriminator",
-    "generator_name": "StarGAN__Generator",
+    "discriminator_name": "DCGAN__Discriminator",
+    "discriminator_kwargs": {
+        "use_sn": true
+    },
+    "generator_name": "DCGAN__Generator",
     "discriminator_optimizer_class": "Adam",
     "discriminator_optimizer_kwargs": {
         "lr": 4e-4,
@@ -34,12 +37,13 @@
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "perturbation_l1_penalty": 0.0,
-    "cyclical_l1_penalty": 0.0,
-    "parameter_drift_penalty": 0.0,
-    "disc_steps_per_gen_step": 5,
+    "disc_steps_per_gen_step": 5.0,
+    "pert_l1_decay": 1e-2,
+    "cal_temperature": false,
+    "pretrain_epochs": 5,
     "total_epochs": 100,
     "seed": 0,
     "batch_size": 32,
-    "val_split_prop": 0.2
+    "val_split_prop": 0.2,
+    "pretrained_disc_path": "dcgan_disc__google_tinyaes"
 }

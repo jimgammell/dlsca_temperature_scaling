@@ -118,7 +118,7 @@ class ClassifierTrainer:
         self.test_dataloader = datasets.common.DataLoader(self.test_dataset, batch_size=self.batch_size, shuffle=False)
         self.model = models.construct_model(self.model_name, input_shape=self.train_dataset.dataset.data_shape, **self.model_kwargs)
         if not hasattr(self.model, 'input_shape'):
-            model.input_shape = self.train_dataset.data_shape
+            self.model.input_shape = self.train_dataset.dataset.data_shape
         self.model = self.model.to(self.device)
         if self.rescale_temperature:
             self.model = models.temperature_scaling(self.model)

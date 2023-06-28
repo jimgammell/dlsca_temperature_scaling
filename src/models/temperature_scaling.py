@@ -19,13 +19,13 @@ def decorate_model(model):
             return logits / temperature
         
         def forward(self, *args, dont_rescale_temperature=False, **kwargs):
-            logits = super().__call__(*args, **kwargs)
+            logits = super().forward(*args, **kwargs)
             if not self.training and not(dont_rescale_temperature):
                 logits = self.temperature_scale(logits)
             return logits
         
         def extra_repr(self):
-            return super().extra_repr() + '\tRescaling temperature to {}.'.format(self.get_temperature())
+            return super().extra_repr() + '\tRescaling temperature to {}.'.format(self.get_temperature().item())
     
     ModelWithTemperature.__name__ = model.__class__.__name__
     model.__class__ = ModelWithTemperature
