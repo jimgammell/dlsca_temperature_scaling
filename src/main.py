@@ -30,7 +30,7 @@ def get_save_dir(name):
     os.makedirs(model_save_dir, exist_ok=True)
     return save_dir, results_save_dir, model_save_dir
     
-def training_run(settings, device='cpu', generate_figs=False, time_objects=False, print_to_terminal=False):
+def training_run(settings, device='cpu', generate_figs=False, time_objects=False, print_to_terminal=False, train_gan=False):
     if hasattr(device, '__getitem__'):
         device = device[0]
     settings['device'] = device
@@ -39,26 +39,16 @@ def training_run(settings, device='cpu', generate_figs=False, time_objects=False
         config.specify_log_file(os.path.join(save_dir, 'log.txt'))
     with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
         json.dump(settings, F, indent=2)
-    trainer = ClassifierTrainer(using_wandb=False, **settings)
+    if train_gan:
+        trainer_class = GANTrainer
+    else:
+        trainer_class = ClassifierTrainer
+    trainer = trainer_class(using_wandb=False, **settings)
     trainer.train_model(
         settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir, time_objects=time_objects
     )
     if generate_figs:
         generate_training_figs(save_dir)
-
-def gan_training_run(settings, device='cpu', print_to_terminal=False):
-    if hasattr(device, '__getitem__'):
-        device = device[0]
-    settings['device'] = device
-    save_dir, results_save_dir, model_save_dir = get_save_dir(settings['save_dir'])
-    if not print_to_terminal:
-        config.specify_log_file(os.path.join(save_dir, 'log.txt'))
-    with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
-        json.dump(settings, F, indent=2)
-    trainer = GANTrainer(using_wandb=False, **settings)
-    trainer.train_model(
-        settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir
-    )
 
 def eval_run(trial_dir, device='cpu', generate_figs=False, print_to_terminal=False):
     if hasattr(device, '__getitem__'):
@@ -92,10 +82,12 @@ def gen_figs(trial_dir):
         print('Could not generate figures for evaluation metrics.')
         traceback.print_exc()
 
-def spawn_agent_(sweep_id, project, device, classifier_settings, print_to_terminal):
-    wandb.agent(sweep_id, project=project, function=lambda: run_wandb_trial_(device, classifier_settings, print_to_terminal))
+def spawn_agent_(sweep_id, project, device, classifier_settings, print_to_terminal, train_gan):
+    wandb.agent(
+        sweep_id, project=project, function=lambda: run_wandb_trial_(device, classifier_settings, print_to_terminal, train_gan)
+    )
 
-def run_wandb_trial_(device, classifier_settings, print_to_terminal):
+def run_wandb_trial_(device, classifier_settings, print_to_terminal, train_gan):
     try:
         classifier_settings = copy.deepcopy(classifier_settings)
         wandb.init()
@@ -111,14 +103,18 @@ def run_wandb_trial_(device, classifier_settings, print_to_terminal):
             config.specify_log_file(os.path.join(save_dir, 'log.txt'))
         with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
             json.dump(settings, F, indent=2)
-        trainer = ClassifierTrainer(using_wandb=True, **classifier_settings)
+        if train_gan:
+            trainer_class = GANTrainer
+        else:
+            trainer_class = ClassifierTrainer
+        trainer = trainer_class(using_wandb=True, **classifier_settings)
         trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
     except Exception:
         with open(os.path.join(save_dir, 'log.txt'), 'a') as F:
             traceback.print_exc(file=F)
         raise Exception('Trial code crashed.')
 
-def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False):
+def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False, train_gan=False):
     if not hasattr(devices, '__len__'):
         devices = [devices]
     wandb_config = settings['wandb_config']
@@ -138,7 +134,7 @@ def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False
             for trial_idx in range(trials_per_gpu):
                 p = multiprocessing.Process(
                     target=spawn_agent_,
-                    args=(sweep_id, settings['wandb_project'], dev, classifier_settings, print_to_terminal)
+                    args=(sweep_id, settings['wandb_project'], dev, classifier_settings, print_to_terminal, train_gan)
                 )
                 procs.append(p)
                 p.start()
@@ -156,10 +152,6 @@ def main():
     parser.add_argument(
         '--train', choices=config.get_available_configs(train=True), nargs='+', default=[],
         help='Training runs to execute, as defined in the respective config files.'
-    )
-    parser.add_argument(
-        '--train-gan', choices=config.get_available_configs(train=True, gan=True), nargs='+', default=[],
-        help='GAN training runs to execute, as defined in the respective config files.'
     )
     parser.add_argument(
         '--htune', choices=config.get_available_configs(train=False), nargs='+', default=[],
@@ -215,27 +207,27 @@ def main():
     for config_name in args.train:
         print('Executing training run defined in {} ...'.format(os.path.join(config.get_config_base_dir(train=True), config_name)))
         settings = config.load_config(config_name, train=True)
+        if 'train_gan' in settings.keys():
+            train_gan = settings['train_gan']
+        else:
+            train_gan = False
         if args.save_dir is not None:
             settings['save_dir'] = args.save_dir
         print('Settings:')
         print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
-        training_run(settings, device=args.devices, generate_figs=args.generate_figs, time_objects=args.time_objects, print_to_terminal=args.print_to_terminal)
-    for config_name in args.train_gan:
-        print('Executing GAN training run defined in {} ...'.format(os.path.join(config.get_config_base_dir(train=True, gan=True), config_name)))
-        settings = config.load_config(config_name, train=True, gan=True)
-        if args.save_dir is not None:
-            settings['save_dir'] = args.save_dir
-        print('Settings:')
-        print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
-        gan_training_run(settings, device=args.devices, print_to_terminal=args.print_to_terminal)
+        training_run(settings, device=args.devices, generate_figs=args.generate_figs, time_objects=args.time_objects, print_to_terminal=args.print_to_terminal, train_gan=train_gan)
     for config_name in args.htune:
         print('Executing hyperparameter tuning run defined in {} ...'.format(os.path.join(config.HTUNE_CONFIGS, config_name)))
         settings = config.load_config(config_name, train=False)
+        if 'train_gan' in settings.keys():
+            train_gan = settings['train_gan']
+        else:
+            train_gan = False
         if args.save_dir is not None:
             settings['save_dir'] = args.save_dir
         print('Settings:')
         print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
-        htune_run(settings, trials_per_gpu=args.trials_per_gpu, devices=args.devices, time_objects=args.time_objects, print_to_terminal=args.print_to_terminal)
+        htune_run(settings, trials_per_gpu=args.trials_per_gpu, devices=args.devices, time_objects=args.time_objects, print_to_terminal=args.print_to_terminal, train_gan=train_gan)
     for trial_name in args.eval:
         trial_dir = os.path.join(config.RESULTS_BASE_DIR, trial_name)
         if os.path.split(trial_dir)[-1].split('_')[0] != 'trial':

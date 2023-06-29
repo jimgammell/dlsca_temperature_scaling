@@ -3,7 +3,7 @@ import torch
 from torch import nn
 from torch.nn.utils.parametrizations import spectral_norm
 
-class DCGAN__Generator(nn.Module):
+class DCGAN__Generator__DONTUSE(nn.Module):
     def __init__(
         self,
         input_shape,
@@ -13,9 +13,12 @@ class DCGAN__Generator(nn.Module):
         embedding_dim=256,
         use_sn=False,
         use_sample_scalar=False,
-        use_gamma=False
+        use_gamma=False,
+        skip_connection=False
     ):
         super().__init__()
+        
+        self.skip_connection = skip_connection
         
         def get_block(in_channels, out_channels, downsample=True, use_bn=True):
             modules = [] if downsample else [nn.Upsample(scale_factor=2)]
@@ -62,7 +65,8 @@ class DCGAN__Generator(nn.Module):
             module.bias.data.zero_()
         
     def forward(self, x):
-        x_orig = x
+        if self.skip_connection:
+            x_orig = x
         x_i = self.downsample_blocks[0](x)
         x_skip = [x_i]
         for ds_block in self.downsample_blocks[1:]:
@@ -77,16 +81,58 @@ class DCGAN__Generator(nn.Module):
             x_resid = x_resid * sample_scalar
         if hasattr(self, 'gamma'):
             x_resid = self.gamma*x_resid
-        out = x_orig + x_resid
+        if self.skip_connection:
+            out = x_orig + x_resid
+        else:
+            out = x_resid
         return out
 
+class DCGAN__Generator(nn.Module):
+    def __init__(
+        self,
+        input_shape,
+        base_channels=32,
+        kernel_size=11,
+        num_blocks=3
+    ):
+        super().__init__()
+        
+        def get_block(in_channels, out_channels, use_bn=True):
+            modules = [
+                nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size//2),
+                nn.ReLU(inplace=True)
+            ]
+            if use_bn:
+                modules.append(nn.BatchNorm1d(out_channels))
+            return nn.Sequential(*modules)
+        
+        self.input_transform = nn.Sequential(
+            nn.Conv1d(input_shape[0], base_channels, kernel_size=kernel_size, padding=kernel_size//2)
+        )
+        self.trunk = nn.Sequential(*[
+            get_block(base_channels, base_channels) for _ in range(num_blocks)
+        ])
+        self.output_transform = nn.Sequential(
+            nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2),
+            nn.Tanh()
+        )
+        self.register_parameter('output_scalar', torch.tensor(0, dtype=torch.float))
+        
+    def forward(self, x):
+        #x_orig = x.clone()
+        x = self.input_transform(x)
+        x = self.trunk(x)
+        x = self.output_transform(x)
+        x = self.output_scalar*x
+        return x
+    
 class DCGAN__Discriminator(nn.Module):
     def __init__(
         self,
         input_shape,
         base_channels=16,
         kernel_size=11,
-        num_blocks=6,
+        num_blocks=3,
         use_sn=False
     ):
         super().__init__()

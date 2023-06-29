@@ -26,6 +26,8 @@ class GANTrainer:
         discriminator_optimizer_class=None, discriminator_optimizer_kwargs={},
         generator_optimizer_class=None, generator_optimizer_kwargs={},
         pert_l1_decay=0.0,
+        gen_drift_decay=0.0,
+        max_pert=1.0,
         disc_steps_per_gen_step=1,
         cal_temperature=False,
         train_sample_transforms=[], train_target_transforms=[], train_batch_transforms=[],
@@ -56,6 +58,8 @@ class GANTrainer:
         assert hasattr(optim, self.generator_optimizer_class)
         assert isinstance(self.generator_optimizer_kwargs, dict)
         assert isinstance(self.pert_l1_decay, float)
+        assert isinstance(self.gen_drift_decay, float)
+        assert isinstance(self.max_pert, float)
         assert isinstance(self.cal_temperature, bool)
         assert isinstance(self.disc_steps_per_gen_step, float)
         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
@@ -117,6 +121,7 @@ class GANTrainer:
             self.discriminator_name, input_shape=self.train_dataset.dataset.data_shape, **self.discriminator_kwargs
         )
         models.temperature_scaling.decorate_model(self.discriminator)
+        models.parameter_averaging.decorate_model(self.generator)
         self.discriminator_temp_optimizer = optim.SGD([self.discriminator.pre_temperature], lr=1e-1, momentum=0.9)
         if not hasattr(self.generator, 'input_shape'):
             setattr(self.generator, 'input_shape', self.train_dataset.dataset.data_shape)
@@ -172,7 +177,7 @@ class GANTrainer:
         batch_size = train_traces.size(0)
         num_classes = 256
         
-        perturbed_traces = self.generator(train_traces)
+        perturbed_traces = self.get_perturbed_traces(train_traces)
         gen_train_loss = nn.functional.l1_loss(perturbed_traces, train_traces)
         self.generator_optimizer.zero_grad(set_to_none=True)
         gen_train_loss.backward()
@@ -210,6 +215,12 @@ class GANTrainer:
             })
         return rv
             
+    def get_perturbed_traces(self, traces):
+        return self.max_pert*self.generator(traces) + traces
+    
+    def gen_criterion(self, gen_traces, target_traces):
+        return (gen_traces - target_traces).norm(p='fro')
+        
     def train_step(
         self,
         train_batch, val_batch=None,
@@ -220,7 +231,7 @@ class GANTrainer:
         start.record()
         
         self.discriminator.train()
-        self.generator.train()
+        self.generator.eval()
         train_traces, train_labels = datasets.common.unpack_batch(train_batch, self.device)
         if self.train_batch_transform is not None:
             train_traces, train_labels = self.train_batch_transform((train_traces, train_labels))
@@ -235,18 +246,19 @@ class GANTrainer:
         if train_disc:
             # d_train phase: update discriminator parameters to improve loss on a training batch
             with torch.no_grad():
-                perturbed_train_traces = self.generator(train_traces)
+                perturbed_train_traces = self.get_perturbed_traces(train_traces)
             d_train_logits = self.discriminator(perturbed_train_traces)
             d_train_loss = nn.functional.cross_entropy(d_train_logits, train_labels)
             self.discriminator_optimizer.zero_grad(set_to_none=True)
             d_train_loss.backward()
             self.discriminator_optimizer.step()
 
+        self.discriminator.eval()
+        self.generator.train()
         if self.cal_temperature:
             # d_cal phase: update discriminator softmax temperature to improve loss on a validation batch
-            self.discriminator.eval()
             with torch.no_grad():
-                perturbed_val_traces = self.generator(val_traces)
+                perturbed_val_traces = self.get_perturbed_traces(train_traces)
             logits = self.discriminator(perturbed_val_traces)
             d_cal_loss = nn.functional.cross_entropy(logits, val_labels)
             self.discriminator_temp_optimizer.zero_grad()
@@ -258,7 +270,7 @@ class GANTrainer:
             # perturb phase: find a new trace which confuses the discriminator
             #   (while trying to keep L1 distance from original trace small)
             perturbed_train_traces.requires_grad = True
-            perturb_opt = optim.LBFGS([perturbed_train_traces], lr=1e-1)
+            perturb_opt = optim.LBFGS([perturbed_train_traces], lr=1e0, max_iter=50)
             def closure():
                 perturb_opt.zero_grad()
                 perturb_loss = nn.functional.cross_entropy(
@@ -267,20 +279,20 @@ class GANTrainer:
                 ) + self.pert_l1_decay*nn.functional.l1_loss(perturbed_train_traces, train_traces)
                 perturb_loss.backward()
                 return perturb_loss
-            num_perturbation_steps = 1
-            prev_val = perturbed_train_traces.detach().clone()
             perturb_opt.step(closure)
-            while (num_perturbation_steps < 10) and ((perturbed_train_traces - prev_val).norm(2) > 1e-2):
-                prev_val = perturbed_train_traces.clone()
-                perturb_opt.step(closure)
-                num_perturbation_steps += 1
+            with torch.no_grad():
+                disc_post_logits = self.discriminator(perturbed_train_traces)
+                disc_post_loss = nn.functional.cross_entropy(disc_post_logits, train_labels)
 
             # g_train phase: update generator parameters so that it outputs the perturbed trace
-            gen_perturbed_traces = self.generator(train_traces)
-            gen_train_loss = nn.functional.l1_loss(gen_perturbed_traces, perturbed_train_traces.detach())
+            gen_perturbed_traces = self.get_perturbed_traces(train_traces)
+            gen_pert_loss = self.gen_criterion(gen_perturbed_traces, perturbed_train_traces.detach())
+            gen_param_drift_loss = self.generator.get_parameter_drift_loss()
+            gen_loss = gen_pert_loss + self.gen_drift_decay*gen_param_drift_loss
             self.generator_optimizer.zero_grad(set_to_none=True)
-            gen_train_loss.backward()
+            gen_loss.backward()
             self.generator_optimizer.step()
+            self.generator.update_avg_buffer()
         
         end.record()
         torch.cuda.synchronize()
@@ -295,9 +307,13 @@ class GANTrainer:
             rv['d_cal_loss'] = d_cal_loss.item()
             rv['d_cal_ece'] = d_cal_ece.item()
         if train_gen:
-            rv['perturbation_steps'] = num_perturbation_steps
-            rv['perturbation_dist'] = (gen_perturbed_traces - perturbed_train_traces).norm(p='fro').item()
-            rv['gen_train_loss'] = gen_train_loss.item()
+            rv['gen_pert_loss'] = gen_pert_loss.item()
+            rv['gen_param_drift_loss'] = gen_param_drift_loss.item()
+            rv['gen_loss'] = gen_loss.item()
+            rv['d_pert_loss'] = disc_post_loss.item()
+            rv['d_pert_acc'] = train.metrics.get_acc(disc_post_logits, train_labels)
+            if hasattr(self.generator, 'output_scalar'):
+                rv['gen_scalar'] = self.generator.output_scalar.item()
         return rv
     
     @torch.no_grad()
@@ -313,7 +329,7 @@ class GANTrainer:
         batch_size = traces.size(0)
         num_classes = 256
         
-        perturbed_traces = self.generator(traces)
+        perturbed_traces = self.get_perturbed_traces(traces)
         disc_logits = self.discriminator(perturbed_traces)
         disc_loss = nn.functional.cross_entropy(disc_logits, labels)
         disc_ece = self.ece_criterion(disc_logits, labels)
@@ -335,7 +351,7 @@ class GANTrainer:
             'd_train_loss': disc_loss.item(),
             'd_train_acc': train.metrics.get_acc(disc_logits, labels),
             'd_cal_ece': disc_ece.item(),
-            'perturbation_l1_loss': perturbation_l1_loss.item(),
+            'perturbation_loss': perturbation_l1_loss.item(),
             'perturbation_confusion_loss': perturbation_confusion_loss.item()
         }
         if hasattr(self, 'pretrained_discriminator'):

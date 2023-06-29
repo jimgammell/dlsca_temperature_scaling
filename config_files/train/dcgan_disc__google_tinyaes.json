@@ -8,6 +8,7 @@
     },
     "model_name": "DCGAN__Discriminator",
     "model_kwargs": {
+        "num_blocks": 6
     },
     "optimizer_class": "Adam",
     "criterion_class": "CrossEntropyLoss",
@@ -31,6 +32,9 @@
         "ToLongTensor",
         "ToOneHot",
         ["LabelSmoothing", {"eps": 0.1}]
+    ],
+    "train_batch_transforms": [
+        ["Mixup", {"mixup_prob": 1.0, "alpha": 0.2}]
     ],
     "eval_sample_transforms": [
         "ToFloatTensor",
