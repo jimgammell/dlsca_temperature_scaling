@@ -1,0 +1,6 @@
+wandb_version: 1
+
+pooling_method:
+  value: aa_maxpool
+scheduler_kwargs-max_lr:
+  value: 0.0013622436564403604

@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 110, in run_wandb_trial_
+    trainer = trainer_class(using_wandb=True, **settings)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/classifier.py", line 53, in __init__
+    assert any(x.__name__ == self.model_name for x in models.AVAILABLE_MODELS)
+AssertionError

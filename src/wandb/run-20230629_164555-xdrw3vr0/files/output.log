@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 111, in run_wandb_trial_
+    trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 404, in train_model
+    self.reset(epochs)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 118, in reset
+    self.generator = models.construct_model(
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/models/__init__.py", line 29, in construct_model
+    model = model_class(**model_kwargs)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/models/gans/dcgan.py", line 119, in __init__
+    self.register_parameter('output_scalar', torch.tensor(0, dtype=torch.float))
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/nn/modules/module.py", line 569, in register_parameter
+    raise TypeError("cannot assign '{}' object to parameter '{}' "
+TypeError: cannot assign 'torch.FloatTensor' object to parameter 'output_scalar' (torch.nn.Parameter or None required)

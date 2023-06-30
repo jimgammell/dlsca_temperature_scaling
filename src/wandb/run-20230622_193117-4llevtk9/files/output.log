@@ -1,0 +1,105 @@
+
+Loading data into memory ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 256/256 [01:35<00:00,  2.69it/s]
+Loading data into memory ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 256/256 [01:33<00:00,  2.73it/s]
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 73, in run_wandb_trial_
+    trainer.train_model(classifier_settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/classifier.py", line 290, in train_model
+    wandb.log(rv, step=epoch_idx)
+NameError: name 'wandb' is not defined

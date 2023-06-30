@@ -116,7 +116,7 @@ class DCGAN__Generator(nn.Module):
             nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2),
             nn.Tanh()
         )
-        self.register_parameter('output_scalar', torch.tensor(0, dtype=torch.float))
+        self.output_scalar = nn.Parameter(torch.tensor(0, dtype=torch.float))
         
     def forward(self, x):
         #x_orig = x.clone()

@@ -1,0 +1,64 @@
+diff --git a/config_files/htune/zaidnet_big__toy_aes.json b/config_files/htune/zaidnet_big__toy_aes.json
+index 9129da3..a7e8161 100644
+--- a/config_files/htune/zaidnet_big__toy_aes.json
++++ b/config_files/htune/zaidnet_big__toy_aes.json
+@@ -23,6 +23,7 @@
+     "eval_metrics": {"accuracy": "get_acc", "rank": "get_rank"},
+     "selection_metric": "acc",
+     "maximize_selection_metric": true,
++    "wandb_project": "htune__zaidnet_big__toy_aes",
+     "wandb_config": {
+         "method": "random",
+         "name": "zaidnet_big",
+diff --git a/src/config/__init__.py b/src/config/__init__.py
+index feb7903..47e5508 100644
+--- a/src/config/__init__.py
++++ b/src/config/__init__.py
+@@ -51,7 +51,7 @@ def load_config(config, train=True):
+ # Remove all nested dictionaries and concatenate nested keys, i.e. {key1: {key2: val}} becomes {key1-key2: val}.
+ #   Necessary because the WandB hyperparameter tuners can't handle nested dictionaries.
+ def denest_dict(d, delim='-'):
+-    if any(delim in key for k in d.keys()):
++    if any(delim in key for key in d.keys()):
+         raise Exception('Delimiter character is used in one or more keys: \'{}\''.format(
+             delim, '\', \''.join(list(d.keys()))
+         ))
+diff --git a/src/main.py b/src/main.py
+index 407c824..3eafcd3 100644
+--- a/src/main.py
++++ b/src/main.py
+@@ -54,7 +54,8 @@ def run_wandb_trial_(device, classifier_settings):
+                 classifier_settings[wc_key].update(wc_val)
+             else:
+                 classifier_settings[wc_key] = wc_val
+-        save_dir = config.results_subdir(settings['save_dir'])
++        save_dir = os.path.join(config.RESULTS_BASE_DIR, classifier_settings['save_dir'])
++        os.makedirs(save_dir, exist_ok=True)
+         if len(os.listdir(save_dir)) > 0:
+             save_dir = os.path.join(save_dir, 'trial_%d'%(max(int(f.split('_')[-1]) for f in os.listdir(save_dir))+1))
+         else:
+@@ -62,7 +63,6 @@ def run_wandb_trial_(device, classifier_settings):
+         results_save_dir = os.path.join(save_dir, 'results')
+         model_save_dir = os.path.join(save_dir, 'models')
+         figures_save_dir = os.path.join(save_dir, 'figures')
+-        os.makedirs(save_dir, exist_ok=True)
+         os.makedirs(results_save_dir, exist_ok=True)
+         os.makedirs(model_save_dir, exist_ok=True)
+         os.makedirs(figures_save_dir, exist_ok=True)
+@@ -72,6 +72,7 @@ def run_wandb_trial_(device, classifier_settings):
+         trainer = ClassifierTrainer(using_wandb=True, **classifier_settings)
+         trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+     except Exception:
++        traceback.print_exc()
+         with open(os.path.join(save_dir, 'log.txt'), 'a') as F:
+             traceback.print_exc(file=F)
+         raise Exception('Trial code crashed.')
+@@ -85,7 +86,7 @@ def htune_run(settings, trials_per_gpu=1, devices='cpu'):
+     if 'sweep_id' in settings:
+         sweep_id = settings['sweep_id']
+     else:
+-        sweep_id = wandb.sweep(sweep=wandb.config, project=settings['wandb_project'])
++        sweep_id = wandb.sweep(sweep=wandb_config, project=settings['wandb_project'])
+     config.set_num_agents(trials_per_gpu*len(devices))
+     if trials_per_gpu*len(devices) == 1:
+         spawn_agent(sweep_id, devices[0], classifier_settings)

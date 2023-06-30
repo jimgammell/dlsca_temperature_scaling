@@ -71,12 +71,12 @@ class GoogleTinyAES(DatasetBase):
             resource_path = google_scaaml.get_dataset_path(train)
         self.resource_path = resource_path
         database_file = h5py.File(os.path.join(resource_path, 'data.hdf5'))
-        self.data = database_file['traces']
-        self.targets = database_file['{}__{}'.format(target_attack_point, target_byte)]
-        self.metadata = {key: val for key, val in database_file.items() if key != 'traces'}
-        self.length = len(self.data)
-        assert self.length == len(self.targets)
-        assert all(self.length == len(val) for val in self.metadata.values())
+        data = database_file['traces']
+        targets = database_file['{}__{}'.format(target_attack_point, target_byte)]
+        metadata = {key: val for key, val in database_file.items() if key != 'traces'}
+        self.length = len(data)
+        assert self.length == len(targets)
+        assert all(self.length == len(val) for val in metadata.values())
         self.name = 'Google_TinyAES'
         self.data_mean = -0.2751
         self.data_stdev = 0.1296
@@ -84,10 +84,11 @@ class GoogleTinyAES(DatasetBase):
         super().__init__(train=train, **kwargs)
     
     def load_idx(self, idx):
-        trace = self.data[idx, :, self.interval_to_use[0]:self.interval_to_use[1]]
-        target = self.targets[idx]
+        database_file = h5py.File(os.path.join(self.resource_path, 'data.hdf5'))
+        trace = database_file['traces'][idx, :, self.interval_to_use[0]:self.interval_to_use[1]]
+        target = database_file['{}__{}'.format(self.target_attack_point, self.target_byte)][idx]
         if hasattr(self, 'return_metadata') and self.return_metadata:
-            metadata = {key: val[idx] for key, val in self.metadata.items()}
+            metadata = {key: val[idx] for key, val in database_file.items() if key != 'traces'}
             return trace, target, metadata
         else:
             return trace, target

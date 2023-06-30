@@ -1,0 +1,129 @@
+
+Loading data into memory ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 256/256 [01:34<00:00,  2.71it/s]
+Loading data into memory ...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 256/256 [01:37<00:00,  2.62it/s]
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 73, in run_wandb_trial_
+    trainer.train_model(classifier_settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/classifier.py", line 266, in train_model
+    train_erv = self.train_epoch()
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/classifier.py", line 218, in train_epoch
+    rv = train.common.run_epoch(self.train_dataloader, self.train_step, **kwargs)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/common.py", line 7, in run_epoch
+    for bidx, batch in enumerate(dataloader):
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 441, in __iter__
+    return self._get_iterator()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 388, in _get_iterator
+    return _MultiProcessingDataLoaderIter(self)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1042, in __init__
+    w.start()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/process.py", line 121, in start
+    self._popen = self._Popen(self)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/context.py", line 224, in _Popen
+    return _default_context.get_context().Process._Popen(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/context.py", line 284, in _Popen
+    return Popen(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_spawn_posix.py", line 32, in __init__
+    super().__init__(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_fork.py", line 19, in __init__
+    self._launch(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_spawn_posix.py", line 58, in _launch
+    self.pid = util.spawnv_passfds(spawn.get_executable(),
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/util.py", line 452, in spawnv_passfds
+    return _posixsubprocess.fork_exec(
+OSError: [Errno 12] Cannot allocate memory

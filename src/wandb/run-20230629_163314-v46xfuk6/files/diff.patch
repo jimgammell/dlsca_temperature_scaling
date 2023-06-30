@@ -1,0 +1,62 @@
+diff --git a/config_files/htune/htune__dcgan__tinyaes.json b/config_files/htune/htune__dcgan__tinyaes.json
+index 098cf08..c1ee0bb 100644
+--- a/config_files/htune/htune__dcgan__tinyaes.json
++++ b/config_files/htune/htune__dcgan__tinyaes.json
+@@ -1,4 +1,5 @@
+ {
++    "wandb_project": "htune__dcgan__tinyaes",
+     "save_dir": "htune__dcgan__tinyaes",
+     "dataset_name": "GoogleTinyAES",
+     "dataset_kwargs": {
+@@ -49,10 +50,10 @@
+         "method": "grid",
+         "name": "dcgan_tinyaes_htune",
+         "parameters": {
+-            "disc_steps_per_gen_step": [0.2, 1.0, 5.0],
+-            "max_pert": [1e-2, 1e-1, 1e0],
+-            "pert_l1_decay": [0.0, 1e-6, 1e-4, 1e-2],
+-            "gen_drift_decay": [0.0, 1e-4, 1e-2]
++            "disc_steps_per_gen_step": {"values": [0.2, 1.0, 5.0]},
++            "max_pert": {"values": [1e-2, 1e-1, 1e0]},
++            "pert_l1_decay": {"values": [0.0, 1e-6, 1e-4, 1e-2]},
++            "gen_drift_decay": {"values": [0.0, 1e-4, 1e-2]}
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/src/config/__init__.py b/src/config/__init__.py
+index 6e1080e..746457b 100644
+--- a/src/config/__init__.py
++++ b/src/config/__init__.py
+@@ -55,7 +55,7 @@ def load_config(config, train=True):
+ # Remove all nested dictionaries and concatenate nested keys, i.e. {key1: {key2: val}} becomes {key1-key2: val}.
+ #   Necessary because the WandB hyperparameter tuners can't handle nested dictionaries.
+ def denest_dict(d, delim='-'):
+-    if any(delim in key for k in d.keys()):
++    if any(delim in key for key in d.keys()):
+         raise Exception('Delimiter character is used in one or more keys: \'{}\''.format(
+             delim, '\', \''.join(list(d.keys()))
+         ))
+diff --git a/src/main.py b/src/main.py
+index bad6826..d07441a 100644
+--- a/src/main.py
++++ b/src/main.py
+@@ -114,7 +114,8 @@ def run_wandb_trial_(device, classifier_settings, print_to_terminal, train_gan):
+             traceback.print_exc(file=F)
+         raise Exception('Trial code crashed.')
+ 
+-def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False, train_gan=False):
++def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False, train_gan=False, time_objects=False):
++    del time_objects ##FIXME
+     if not hasattr(devices, '__len__'):
+         devices = [devices]
+     wandb_config = settings['wandb_config']
+@@ -123,7 +124,7 @@ def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False
+     if 'sweep_id' in settings:
+         sweep_id = settings['sweep_id']
+     else:
+-        sweep_id = wandb.sweep(sweep=wandb.config, project=settings['wandb_project'])
++        sweep_id = wandb.sweep(sweep=wandb_config, project=settings['wandb_project'])
+     config.set_num_agents(trials_per_gpu*len(devices))
+     if trials_per_gpu*len(devices) == 1:
+         spawn_agent(sweep_id, devices[0], classifier_settings)

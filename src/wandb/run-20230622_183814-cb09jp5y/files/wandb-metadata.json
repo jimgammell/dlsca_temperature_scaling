@@ -1,0 +1,263 @@
+{
+    "os": "Linux-3.10.0-1160.90.1.el7.x86_64-x86_64-with-glibc2.17",
+    "python": "3.9.16",
+    "heartbeatAt": "2023-06-22T22:38:15.532478",
+    "startedAt": "2023-06-22T22:38:14.149041",
+    "docker": null,
+    "cuda": "10.1.243",
+    "args": [
+        "--htune",
+        "zaidnet_big__toy_aes",
+        "--trials-per-gpu",
+        "1",
+        "--save-dir",
+        "htune__zaidnet_big",
+        "--devices",
+        "cuda:0",
+        "--cudnn-benchmark"
+    ],
+    "state": "running",
+    "program": "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py",
+    "codePath": "src/main.py",
+    "git": {
+        "remote": "https://github.com/jimgammell/dlsca_temperature_scaling",
+        "commit": "2d1075169dedf5fbedfb6e399fe64286cd3ca489"
+    },
+    "email": "jgammell@purdue.edu",
+    "root": "/local/a/jgammell/dlsca_bag_of_tricks",
+    "host": "cbric-gpu1.ecn.purdue.edu",
+    "username": "jgammell",
+    "executable": "/home/min/a/jgammell/miniconda3/envs/sca-defense/bin/python",
+    "cpu_count": 20,
+    "cpu_count_logical": 40,
+    "cpu_freq": {
+        "current": 862.6945250000002,
+        "min": 800.0,
+        "max": 3000.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 799.89,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 850.646,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2412.561,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1015.673,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.83,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 799.89,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.964,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1263.146,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.292,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 799.89,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 886.633,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.367,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 799.755,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 866.223,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.561,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.232,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.098,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.695,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.158,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 799.89,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.098,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.098,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1003.454,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.098,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.695,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 801.098,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.83,
+            "min": 800.0,
+            "max": 3000.0
+        }
+    ],
+    "disk": {
+        "total": 63.515846252441406,
+        "used": 40.134735107421875
+    },
+    "gpu": "NVIDIA GeForce GTX 1080 Ti",
+    "gpu_count": 3,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11811160064
+        },
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11811160064
+        },
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11811160064
+        }
+    ],
+    "memory": {
+        "total": 92.8799934387207
+    }
+}

@@ -1,0 +1,34 @@
+2023-06-29 17:49:09,744 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Current SDK version is 0.15.4
+2023-06-29 17:49:09,744 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Configure stats pid to 155794
+2023-06-29 17:49:09,744 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Loading settings from /home/min/a/jgammell/.config/wandb/settings
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Loading settings from /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/settings
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'project': 'htune__dcgan__tinyaes', 'entity': 'jgammell', 'root_dir': '/local/a/jgammell/dlsca_bag_of_tricks/src', 'run_id': 'i9d9q6ny', 'sweep_param_path': '/local/a/jgammell/dlsca_bag_of_tricks/src/wandb/sweep-8yblkora/config-i9d9q6ny.yaml', 'sweep_id': '8yblkora'}
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'src/main.py', 'program': '/local/a/jgammell/dlsca_bag_of_tricks/src/main.py'}
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_init.py:_log_setup():507] Logging user logs to /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230629_174909-i9d9q6ny/logs/debug.log
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_init.py:_log_setup():508] Logging internal logs to /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230629_174909-i9d9q6ny/logs/debug-internal.log
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_init.py:init():547] calling init triggers
+2023-06-29 17:49:09,745 INFO    Thread-10 :155794 [wandb_init.py:init():554] wandb.init called with sweep_config: {'disc_steps_per_gen_step': 0.2, 'gen_drift_decay': 0, 'max_pert': 0.1, 'pert_l1_decay': 0}
+config: {}
+2023-06-29 17:49:09,746 INFO    Thread-10 :155794 [wandb_init.py:init():596] starting backend
+2023-06-29 17:49:09,746 INFO    Thread-10 :155794 [wandb_init.py:init():600] setting up manager
+2023-06-29 17:49:09,758 INFO    Thread-10 :155794 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2023-06-29 17:49:09,766 INFO    Thread-10 :155794 [wandb_init.py:init():606] backend started and connected
+2023-06-29 17:49:09,776 INFO    Thread-10 :155794 [wandb_run.py:_config_callback():1283] config_cb None None {'disc_steps_per_gen_step': 0.2, 'gen_drift_decay': 0, 'max_pert': 0.1, 'pert_l1_decay': 0}
+2023-06-29 17:49:09,781 INFO    Thread-10 :155794 [wandb_init.py:init():703] updated telemetry
+2023-06-29 17:49:09,850 INFO    Thread-10 :155794 [wandb_init.py:init():736] communicating run to backend with 60.0 second timeout
+2023-06-29 17:49:10,153 INFO    Thread-10 :155794 [wandb_run.py:_on_init():2176] communicating current version
+2023-06-29 17:49:10,306 INFO    Thread-10 :155794 [wandb_run.py:_on_init():2185] got version response 
+2023-06-29 17:49:10,307 INFO    Thread-10 :155794 [wandb_init.py:init():787] starting run threads in backend
+2023-06-29 17:49:16,475 INFO    Thread-10 :155794 [wandb_run.py:_console_start():2155] atexit reg
+2023-06-29 17:49:16,475 INFO    Thread-10 :155794 [wandb_run.py:_redirect():2010] redirect: SettingsConsole.WRAP_RAW
+2023-06-29 17:49:16,475 INFO    Thread-10 :155794 [wandb_run.py:_redirect():2075] Wrapping output streams.
+2023-06-29 17:49:16,475 INFO    Thread-10 :155794 [wandb_run.py:_redirect():2100] Redirects installed.
+2023-06-29 17:49:16,477 INFO    Thread-10 :155794 [wandb_init.py:init():828] run started, returning control to user process
+2023-06-29 17:52:10,028 INFO    Thread-10 :155794 [wandb_run.py:_finish():1890] finishing run jgammell/htune__dcgan__tinyaes/i9d9q6ny
+2023-06-29 17:52:10,029 INFO    Thread-10 :155794 [wandb_run.py:_atexit_cleanup():2124] got exitcode: 1
+2023-06-29 17:52:10,029 INFO    Thread-10 :155794 [wandb_run.py:_restore():2107] restore
+2023-06-29 17:52:10,030 INFO    Thread-10 :155794 [wandb_run.py:_restore():2113] restore done
+2023-06-29 17:52:14,422 INFO    Thread-10 :155794 [wandb_run.py:_footer_history_summary_info():3467] rendering history
+2023-06-29 17:52:14,423 INFO    Thread-10 :155794 [wandb_run.py:_footer_history_summary_info():3499] rendering summary
+2023-06-29 17:52:14,436 INFO    Thread-10 :155794 [wandb_run.py:_footer_sync_info():3426] logging synced files

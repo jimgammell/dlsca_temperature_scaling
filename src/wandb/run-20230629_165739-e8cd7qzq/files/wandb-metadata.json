@@ -1,0 +1,260 @@
+{
+    "os": "Linux-3.10.0-1160.90.1.el7.x86_64-x86_64-with-glibc2.17",
+    "python": "3.9.16",
+    "heartbeatAt": "2023-06-29T20:57:40.271282",
+    "startedAt": "2023-06-29T20:57:39.702292",
+    "docker": null,
+    "cuda": "10.1.243",
+    "args": [
+        "--htune",
+        "htune__dcgan__tinyaes",
+        "--devices",
+        "cuda:0",
+        "cuda:1",
+        "cuda:2"
+    ],
+    "state": "running",
+    "program": "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py",
+    "codePath": "src/main.py",
+    "git": {
+        "remote": "https://github.com/jimgammell/dlsca_temperature_scaling",
+        "commit": "fa68d435d48e3f1d7f2075395e957016f33dbe9f"
+    },
+    "email": "jgammell@purdue.edu",
+    "root": "/local/a/jgammell/dlsca_bag_of_tricks",
+    "host": "cbric-gpu1.ecn.purdue.edu",
+    "username": "jgammell",
+    "executable": "/home/min/a/jgammell/miniconda3/envs/sca-defense/bin/python",
+    "cpu_count": 20,
+    "cpu_count_logical": 40,
+    "cpu_freq": {
+        "current": 2148.712175,
+        "min": 800.0,
+        "max": 3000.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 2055.248,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1983.007,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2166.833,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2119.836,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 799.89,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2051.891,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2277.075,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1982.47,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2161.73,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2279.357,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2656.005,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2179.724,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2133.935,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2617.333,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1978.979,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1991.87,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2244.58,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2188.183,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2058.068,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1948.498,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2241.625,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2392.956,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2065.991,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1911.303,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 800.024,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1953.601,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2112.182,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2064.379,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2140.38,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2052.831,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2675.61,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2435.791,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2524.682,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2592.224,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2298.425,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1089.526,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2081.297,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 1978.979,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2081.164,
+            "min": 800.0,
+            "max": 3000.0
+        },
+        {
+            "current": 2363.684,
+            "min": 800.0,
+            "max": 3000.0
+        }
+    ],
+    "disk": {
+        "total": 63.515846252441406,
+        "used": 40.23428726196289
+    },
+    "gpu": "NVIDIA GeForce GTX 1080 Ti",
+    "gpu_count": 3,
+    "gpu_devices": [
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11811160064
+        },
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11811160064
+        },
+        {
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "memory_total": 11811160064
+        }
+    ],
+    "memory": {
+        "total": 92.8799934387207
+    }
+}

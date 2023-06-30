@@ -1,0 +1,5 @@
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/wandb/sdk/lib/import_hooks.py", line 100, in unregister_all_post_import_hooks
+    _post_import_hooks.clear()

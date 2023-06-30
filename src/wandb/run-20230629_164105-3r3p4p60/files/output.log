@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 110, in run_wandb_trial_
+    trainer = trainer_class(using_wandb=True, **settings)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 60, in __init__
+    assert isnumeric(self.pert_l1_decay)
+NameError: name 'isnumeric' is not defined

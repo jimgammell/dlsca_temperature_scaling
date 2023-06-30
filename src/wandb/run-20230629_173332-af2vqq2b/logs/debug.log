@@ -1,0 +1,27 @@
+2023-06-29 17:33:32,217 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Current SDK version is 0.15.4
+2023-06-29 17:33:32,217 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Configure stats pid to 134671
+2023-06-29 17:33:32,217 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Loading settings from /home/min/a/jgammell/.config/wandb/settings
+2023-06-29 17:33:32,217 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Loading settings from /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/settings
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Loading settings from environment variables: {'project': 'htune__dcgan__tinyaes', 'entity': 'jgammell', 'root_dir': '/local/a/jgammell/dlsca_bag_of_tricks/src', 'sweep_id': 'nh8rb4la', 'run_id': 'af2vqq2b', 'sweep_param_path': '/local/a/jgammell/dlsca_bag_of_tricks/src/wandb/sweep-nh8rb4la/config-af2vqq2b.yaml'}
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Applying setup settings: {'_disable_service': False}
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'src/main.py', 'program': '/local/a/jgammell/dlsca_bag_of_tricks/src/main.py'}
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_init.py:_log_setup():507] Logging user logs to /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230629_173332-af2vqq2b/logs/debug.log
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_init.py:_log_setup():508] Logging internal logs to /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230629_173332-af2vqq2b/logs/debug-internal.log
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_init.py:init():547] calling init triggers
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_init.py:init():554] wandb.init called with sweep_config: {'disc_steps_per_gen_step': 0.2, 'gen_drift_decay': 0, 'max_pert': 0.01, 'pert_l1_decay': 0}
+config: {}
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_init.py:init():596] starting backend
+2023-06-29 17:33:32,218 INFO    Thread-2  :134671 [wandb_init.py:init():600] setting up manager
+2023-06-29 17:33:32,231 INFO    Thread-2  :134671 [backend.py:_multiprocessing_setup():106] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2023-06-29 17:33:32,243 INFO    Thread-2  :134671 [wandb_init.py:init():606] backend started and connected
+2023-06-29 17:33:32,253 INFO    Thread-2  :134671 [wandb_run.py:_config_callback():1283] config_cb None None {'disc_steps_per_gen_step': 0.2, 'gen_drift_decay': 0, 'max_pert': 0.01, 'pert_l1_decay': 0}
+2023-06-29 17:33:32,256 INFO    Thread-2  :134671 [wandb_init.py:init():703] updated telemetry
+2023-06-29 17:33:32,290 INFO    Thread-2  :134671 [wandb_init.py:init():736] communicating run to backend with 60.0 second timeout
+2023-06-29 17:33:32,601 INFO    Thread-2  :134671 [wandb_run.py:_on_init():2176] communicating current version
+2023-06-29 17:33:32,761 INFO    Thread-2  :134671 [wandb_run.py:_on_init():2185] got version response 
+2023-06-29 17:33:32,761 INFO    Thread-2  :134671 [wandb_init.py:init():787] starting run threads in backend
+2023-06-29 17:33:38,467 INFO    Thread-2  :134671 [wandb_run.py:_console_start():2155] atexit reg
+2023-06-29 17:33:38,468 INFO    Thread-2  :134671 [wandb_run.py:_redirect():2010] redirect: SettingsConsole.WRAP_RAW
+2023-06-29 17:33:38,468 INFO    Thread-2  :134671 [wandb_run.py:_redirect():2075] Wrapping output streams.
+2023-06-29 17:33:38,468 INFO    Thread-2  :134671 [wandb_run.py:_redirect():2100] Redirects installed.
+2023-06-29 17:33:38,470 INFO    Thread-2  :134671 [wandb_init.py:init():828] run started, returning control to user process

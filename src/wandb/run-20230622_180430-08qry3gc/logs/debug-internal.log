@@ -1,0 +1,189 @@
+2023-06-22 18:04:30,582 INFO    StreamThr :226105 [internal.py:wandb_internal():86] W&B internal server running at pid: 226105, started at: 2023-06-22 18:04:30.580850
+2023-06-22 18:04:30,585 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: status
+2023-06-22 18:04:30,607 INFO    WriterThread:226105 [datastore.py:open_for_write():85] open: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/run-08qry3gc.wandb
+2023-06-22 18:04:30,608 DEBUG   SenderThread:226105 [sender.py:send():369] send: header
+2023-06-22 18:04:30,806 DEBUG   SenderThread:226105 [sender.py:send():369] send: run
+2023-06-22 18:04:31,090 INFO    SenderThread:226105 [dir_watcher.py:__init__():211] watching files in: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files
+2023-06-22 18:04:31,090 INFO    SenderThread:226105 [sender.py:_start_run_threads():1100] run started: 08qry3gc with start time 1687471470.581705
+2023-06-22 18:04:31,091 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: summary_record
+2023-06-22 18:04:31,091 INFO    SenderThread:226105 [sender.py:_save_file():1354] saving file wandb-summary.json with policy end
+2023-06-22 18:04:31,097 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: check_version
+2023-06-22 18:04:31,097 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: check_version
+2023-06-22 18:04:31,275 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: run_start
+2023-06-22 18:04:31,293 DEBUG   HandlerThread:226105 [system_info.py:__init__():31] System info init
+2023-06-22 18:04:31,293 DEBUG   HandlerThread:226105 [system_info.py:__init__():46] System info init done
+2023-06-22 18:04:31,293 INFO    HandlerThread:226105 [system_monitor.py:start():181] Starting system monitor
+2023-06-22 18:04:31,293 INFO    SystemMonitor:226105 [system_monitor.py:_start():145] Starting system asset monitoring threads
+2023-06-22 18:04:31,295 INFO    HandlerThread:226105 [system_monitor.py:probe():201] Collecting system info
+2023-06-22 18:04:31,296 INFO    SystemMonitor:226105 [interfaces.py:start():190] Started cpu monitoring
+2023-06-22 18:04:31,297 INFO    SystemMonitor:226105 [interfaces.py:start():190] Started disk monitoring
+2023-06-22 18:04:31,299 INFO    SystemMonitor:226105 [interfaces.py:start():190] Started gpu monitoring
+2023-06-22 18:04:31,301 INFO    SystemMonitor:226105 [interfaces.py:start():190] Started memory monitoring
+2023-06-22 18:04:31,302 INFO    SystemMonitor:226105 [interfaces.py:start():190] Started network monitoring
+2023-06-22 18:04:31,349 DEBUG   HandlerThread:226105 [system_info.py:probe():195] Probing system
+2023-06-22 18:04:31,363 DEBUG   HandlerThread:226105 [system_info.py:_probe_git():180] Probing git
+2023-06-22 18:04:31,406 DEBUG   HandlerThread:226105 [system_info.py:_probe_git():188] Probing git done
+2023-06-22 18:04:31,407 DEBUG   HandlerThread:226105 [system_info.py:probe():240] Probing system done
+2023-06-22 18:04:31,407 DEBUG   HandlerThread:226105 [system_monitor.py:probe():210] {'os': 'Linux-3.10.0-1160.90.1.el7.x86_64-x86_64-with-glibc2.17', 'python': '3.9.16', 'heartbeatAt': '2023-06-22T22:04:31.349661', 'startedAt': '2023-06-22T22:04:30.540639', 'docker': None, 'cuda': '10.1.243', 'args': ('--htune', 'zaidnet_big__toy_aes', '--trials-per-gpu', '1', '--save-dir', 'htune__zaidnet_big', '--devices', 'cuda:0', 'cuda:1', 'cuda:2', '--cudnn-benchmark'), 'state': 'running', 'program': '/local/a/jgammell/dlsca_bag_of_tricks/src/main.py', 'codePath': 'src/main.py', 'git': {'remote': 'https://github.com/jimgammell/dlsca_temperature_scaling', 'commit': '2d1075169dedf5fbedfb6e399fe64286cd3ca489'}, 'email': 'jgammell@purdue.edu', 'root': '/local/a/jgammell/dlsca_bag_of_tricks', 'host': 'cbric-gpu1.ecn.purdue.edu', 'username': 'jgammell', 'executable': '/home/min/a/jgammell/miniconda3/envs/sca-defense/bin/python', 'cpu_count': 20, 'cpu_count_logical': 40, 'cpu_freq': {'current': 956.4033499999998, 'min': 800.0, 'max': 3000.0}, 'cpu_freq_per_core': [{'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 852.392, 'min': 800.0, 'max': 3000.0}, {'current': 816.137, 'min': 800.0, 'max': 3000.0}, {'current': 812.377, 'min': 800.0, 'max': 3000.0}, {'current': 954.443, 'min': 800.0, 'max': 3000.0}, {'current': 872.131, 'min': 800.0, 'max': 3000.0}, {'current': 840.844, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 823.791, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.158, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 811.975, 'min': 800.0, 'max': 3000.0}, {'current': 799.621, 'min': 800.0, 'max': 3000.0}, {'current': 800.158, 'min': 800.0, 'max': 3000.0}, {'current': 799.89, 'min': 800.0, 'max': 3000.0}, {'current': 919.262, 'min': 800.0, 'max': 3000.0}, {'current': 1008.02, 'min': 800.0, 'max': 3000.0}, {'current': 846.618, 'min': 800.0, 'max': 3000.0}, {'current': 865.686, 'min': 800.0, 'max': 3000.0}, {'current': 809.423, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 801.098, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.427, 'min': 800.0, 'max': 3000.0}, {'current': 1435.021, 'min': 800.0, 'max': 3000.0}, {'current': 799.89, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 801.098, 'min': 800.0, 'max': 3000.0}, {'current': 799.89, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 800.024, 'min': 800.0, 'max': 3000.0}, {'current': 1044.676, 'min': 800.0, 'max': 3000.0}, {'current': 799.89, 'min': 800.0, 'max': 3000.0}], 'disk': {'total': 63.515846252441406, 'used': 40.134727478027344}, 'gpu': 'NVIDIA GeForce GTX 1080 Ti', 'gpu_count': 3, 'gpu_devices': [{'name': 'NVIDIA GeForce GTX 1080 Ti', 'memory_total': 11811160064}, {'name': 'NVIDIA GeForce GTX 1080 Ti', 'memory_total': 11811160064}, {'name': 'NVIDIA GeForce GTX 1080 Ti', 'memory_total': 11811160064}], 'memory': {'total': 92.8799934387207}}
+2023-06-22 18:04:31,408 INFO    HandlerThread:226105 [system_monitor.py:probe():211] Finished collecting system info
+2023-06-22 18:04:31,408 INFO    HandlerThread:226105 [system_monitor.py:probe():214] Publishing system info
+2023-06-22 18:04:31,408 DEBUG   HandlerThread:226105 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2023-06-22 18:04:31,409 DEBUG   HandlerThread:226105 [system_info.py:_save_pip():67] Saving pip packages done
+2023-06-22 18:04:31,410 DEBUG   HandlerThread:226105 [system_info.py:_save_conda():74] Saving list of conda packages installed into the current environment
+2023-06-22 18:04:32,096 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/wandb-summary.json
+2023-06-22 18:04:32,098 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/requirements.txt
+2023-06-22 18:04:32,098 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/conda-environment.yaml
+2023-06-22 18:04:37,011 DEBUG   HandlerThread:226105 [system_info.py:_save_conda():86] Saving conda packages done
+2023-06-22 18:04:37,011 DEBUG   HandlerThread:226105 [system_info.py:_save_code():89] Saving code
+2023-06-22 18:04:37,027 DEBUG   HandlerThread:226105 [system_info.py:_save_code():110] Saving code done
+2023-06-22 18:04:37,028 DEBUG   HandlerThread:226105 [system_info.py:_save_patches():127] Saving git patches
+2023-06-22 18:04:37,112 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_modified():289] file/dir modified: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/conda-environment.yaml
+2023-06-22 18:04:37,114 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/code/src/main.py
+2023-06-22 18:04:37,114 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/code
+2023-06-22 18:04:37,115 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/code/src
+2023-06-22 18:04:37,157 DEBUG   HandlerThread:226105 [system_info.py:_save_patches():169] Saving git patches done
+2023-06-22 18:04:37,160 INFO    HandlerThread:226105 [system_monitor.py:probe():216] Finished publishing system info
+2023-06-22 18:04:37,181 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: status_report
+2023-06-22 18:04:37,182 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: keepalive
+2023-06-22 18:04:37,184 DEBUG   SenderThread:226105 [sender.py:send():369] send: exit
+2023-06-22 18:04:37,184 INFO    SenderThread:226105 [sender.py:send_exit():574] handling exit code: 0
+2023-06-22 18:04:37,185 INFO    SenderThread:226105 [sender.py:send_exit():576] handling runtime: 5
+2023-06-22 18:04:37,190 INFO    SenderThread:226105 [sender.py:_save_file():1354] saving file wandb-summary.json with policy end
+2023-06-22 18:04:37,191 INFO    SenderThread:226105 [sender.py:send_exit():582] send defer
+2023-06-22 18:04:37,192 DEBUG   SenderThread:226105 [sender.py:send():369] send: files
+2023-06-22 18:04:37,192 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,192 INFO    SenderThread:226105 [sender.py:_save_file():1354] saving file wandb-metadata.json with policy now
+2023-06-22 18:04:37,192 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 0
+2023-06-22 18:04:37,193 INFO    SenderThread:226105 [sender.py:_save_file():1354] saving file code/src/main.py with policy now
+2023-06-22 18:04:37,195 INFO    SenderThread:226105 [sender.py:_save_file():1354] saving file diff.patch with policy now
+2023-06-22 18:04:37,196 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,196 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 0
+2023-06-22 18:04:37,196 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 1
+2023-06-22 18:04:37,197 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,197 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 1
+2023-06-22 18:04:37,198 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,199 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 1
+2023-06-22 18:04:37,204 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 2
+2023-06-22 18:04:37,209 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,209 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 2
+2023-06-22 18:04:37,209 INFO    HandlerThread:226105 [system_monitor.py:finish():190] Stopping system monitor
+2023-06-22 18:04:37,211 DEBUG   SystemMonitor:226105 [system_monitor.py:_start():159] Starting system metrics aggregation loop
+2023-06-22 18:04:37,211 DEBUG   SystemMonitor:226105 [system_monitor.py:_start():166] Finished system metrics aggregation loop
+2023-06-22 18:04:37,212 INFO    HandlerThread:226105 [interfaces.py:finish():202] Joined cpu monitor
+2023-06-22 18:04:37,212 DEBUG   SystemMonitor:226105 [system_monitor.py:_start():170] Publishing last batch of metrics
+2023-06-22 18:04:37,213 INFO    HandlerThread:226105 [interfaces.py:finish():202] Joined disk monitor
+2023-06-22 18:04:37,619 INFO    HandlerThread:226105 [interfaces.py:finish():202] Joined gpu monitor
+2023-06-22 18:04:37,620 INFO    HandlerThread:226105 [interfaces.py:finish():202] Joined memory monitor
+2023-06-22 18:04:37,620 INFO    HandlerThread:226105 [interfaces.py:finish():202] Joined network monitor
+2023-06-22 18:04:37,621 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: poll_exit
+2023-06-22 18:04:37,621 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,622 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 2
+2023-06-22 18:04:37,622 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 3
+2023-06-22 18:04:37,622 DEBUG   SenderThread:226105 [sender.py:send():369] send: stats
+2023-06-22 18:04:37,622 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: poll_exit
+2023-06-22 18:04:37,623 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,623 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 3
+2023-06-22 18:04:37,623 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,623 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 3
+2023-06-22 18:04:37,623 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 4
+2023-06-22 18:04:37,623 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,624 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 4
+2023-06-22 18:04:37,624 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,624 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 4
+2023-06-22 18:04:37,624 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 5
+2023-06-22 18:04:37,624 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,625 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 5
+2023-06-22 18:04:37,625 DEBUG   SenderThread:226105 [sender.py:send():369] send: summary
+2023-06-22 18:04:37,626 INFO    SenderThread:226105 [sender.py:_save_file():1354] saving file wandb-summary.json with policy end
+2023-06-22 18:04:37,626 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,626 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 5
+2023-06-22 18:04:37,626 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 6
+2023-06-22 18:04:37,626 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,626 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 6
+2023-06-22 18:04:37,627 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,627 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 6
+2023-06-22 18:04:37,627 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 7
+2023-06-22 18:04:37,627 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: status_report
+2023-06-22 18:04:37,628 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,628 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 7
+2023-06-22 18:04:37,628 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,628 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 7
+2023-06-22 18:04:37,628 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 8
+2023-06-22 18:04:37,629 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,629 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 8
+2023-06-22 18:04:37,629 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,629 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 8
+2023-06-22 18:04:37,629 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 9
+2023-06-22 18:04:37,629 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:37,629 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 9
+2023-06-22 18:04:37,630 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:37,630 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 9
+2023-06-22 18:04:37,630 INFO    SenderThread:226105 [dir_watcher.py:finish():359] shutting down directory watcher
+2023-06-22 18:04:37,724 INFO    wandb-upload_0:226105 [upload_job.py:push():133] Uploaded file /tmp/tmp6ik4jiomwandb/oqjv2799-wandb-metadata.json
+2023-06-22 18:04:37,908 INFO    wandb-upload_2:226105 [upload_job.py:push():133] Uploaded file /tmp/tmp6ik4jiomwandb/19upcsrx-diff.patch
+2023-06-22 18:04:37,980 INFO    wandb-upload_1:226105 [upload_job.py:push():133] Uploaded file /tmp/tmp6ik4jiomwandb/chjdtynx-code/src/main.py
+2023-06-22 18:04:38,113 INFO    Thread-12 :226105 [dir_watcher.py:_on_file_modified():289] file/dir modified: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/wandb-summary.json
+2023-06-22 18:04:38,114 INFO    SenderThread:226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/diff.patch
+2023-06-22 18:04:38,115 INFO    SenderThread:226105 [dir_watcher.py:_on_file_created():272] file/dir created: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/wandb-metadata.json
+2023-06-22 18:04:38,116 INFO    SenderThread:226105 [dir_watcher.py:finish():389] scan: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files
+2023-06-22 18:04:38,116 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/config.yaml config.yaml
+2023-06-22 18:04:38,117 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/wandb-summary.json wandb-summary.json
+2023-06-22 18:04:38,124 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/requirements.txt requirements.txt
+2023-06-22 18:04:38,133 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/conda-environment.yaml conda-environment.yaml
+2023-06-22 18:04:38,143 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/diff.patch diff.patch
+2023-06-22 18:04:38,152 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/wandb-metadata.json wandb-metadata.json
+2023-06-22 18:04:38,153 INFO    SenderThread:226105 [dir_watcher.py:finish():403] scan save: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/code/src/main.py code/src/main.py
+2023-06-22 18:04:38,154 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 10
+2023-06-22 18:04:38,154 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:38,154 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 10
+2023-06-22 18:04:38,155 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:38,155 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 10
+2023-06-22 18:04:38,155 INFO    SenderThread:226105 [file_pusher.py:finish():159] shutting down file pusher
+2023-06-22 18:04:38,449 INFO    wandb-upload_1:226105 [upload_job.py:push():133] Uploaded file /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/wandb-summary.json
+2023-06-22 18:04:38,459 INFO    wandb-upload_2:226105 [upload_job.py:push():133] Uploaded file /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/requirements.txt
+2023-06-22 18:04:38,559 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: poll_exit
+2023-06-22 18:04:38,560 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: poll_exit
+2023-06-22 18:04:38,571 INFO    wandb-upload_0:226105 [upload_job.py:push():133] Uploaded file /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/config.yaml
+2023-06-22 18:04:38,637 INFO    wandb-upload_3:226105 [upload_job.py:push():133] Uploaded file /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/files/conda-environment.yaml
+2023-06-22 18:04:38,838 INFO    Thread-11 :226105 [sender.py:transition_state():602] send defer: 11
+2023-06-22 18:04:38,838 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:38,839 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 11
+2023-06-22 18:04:38,840 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:38,840 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 11
+2023-06-22 18:04:38,840 INFO    SenderThread:226105 [file_pusher.py:join():164] waiting for file pusher
+2023-06-22 18:04:38,840 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 12
+2023-06-22 18:04:38,841 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:38,841 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 12
+2023-06-22 18:04:38,841 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:38,841 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 12
+2023-06-22 18:04:39,030 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 13
+2023-06-22 18:04:39,030 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:39,031 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 13
+2023-06-22 18:04:39,031 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:39,031 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 13
+2023-06-22 18:04:39,032 INFO    SenderThread:226105 [sender.py:transition_state():602] send defer: 14
+2023-06-22 18:04:39,033 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: defer
+2023-06-22 18:04:39,033 DEBUG   SenderThread:226105 [sender.py:send():369] send: final
+2023-06-22 18:04:39,033 INFO    HandlerThread:226105 [handler.py:handle_request_defer():170] handle defer: 14
+2023-06-22 18:04:39,033 DEBUG   SenderThread:226105 [sender.py:send():369] send: footer
+2023-06-22 18:04:39,034 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: defer
+2023-06-22 18:04:39,034 INFO    SenderThread:226105 [sender.py:send_request_defer():598] handle sender defer: 14
+2023-06-22 18:04:39,035 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: poll_exit
+2023-06-22 18:04:39,035 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: poll_exit
+2023-06-22 18:04:39,036 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: poll_exit
+2023-06-22 18:04:39,037 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: poll_exit
+2023-06-22 18:04:39,037 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: server_info
+2023-06-22 18:04:39,038 DEBUG   SenderThread:226105 [sender.py:send_request():396] send_request: server_info
+2023-06-22 18:04:39,043 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: get_summary
+2023-06-22 18:04:39,045 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: sampled_history
+2023-06-22 18:04:39,118 INFO    MainThread:226105 [wandb_run.py:_footer_history_summary_info():3467] rendering history
+2023-06-22 18:04:39,118 INFO    MainThread:226105 [wandb_run.py:_footer_history_summary_info():3499] rendering summary
+2023-06-22 18:04:39,118 INFO    MainThread:226105 [wandb_run.py:_footer_sync_info():3426] logging synced files
+2023-06-22 18:04:39,119 DEBUG   HandlerThread:226105 [handler.py:handle_request():144] handle_request: shutdown
+2023-06-22 18:04:39,119 INFO    HandlerThread:226105 [handler.py:finish():854] shutting down handler
+2023-06-22 18:04:39,599 WARNING StreamThr :226105 [internal.py:is_dead():414] Internal process exiting, parent pid 225166 disappeared
+2023-06-22 18:04:39,599 ERROR   StreamThr :226105 [internal.py:wandb_internal():152] Internal process shutdown.
+2023-06-22 18:04:40,038 INFO    WriterThread:226105 [datastore.py:close():298] close: /local/a/jgammell/dlsca_bag_of_tricks/src/wandb/run-20230622_180430-08qry3gc/run-08qry3gc.wandb
+2023-06-22 18:04:40,118 INFO    SenderThread:226105 [sender.py:finish():1526] shutting down sender
+2023-06-22 18:04:40,118 INFO    SenderThread:226105 [file_pusher.py:finish():159] shutting down file pusher
+2023-06-22 18:04:40,118 INFO    SenderThread:226105 [file_pusher.py:join():164] waiting for file pusher

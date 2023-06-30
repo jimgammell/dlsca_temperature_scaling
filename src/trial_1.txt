@@ -1,0 +1,1093 @@
+Executing GAN training run defined in ../config_files/train/gan/weird_gan__tinyaes_a ...
+Settings:
+	save_dir: weird_gan__tinyaes_a
+	dataset_name: GoogleTinyAES
+	dataset_kwargs: {'target_byte': 7, 'interval_to_use': [0, 20000], 'target_attack_point': 'sub_bytes_out'}
+	discriminator_name: DCGAN__Discriminator
+	discriminator_kwargs: {'use_sn': True, 'num_blocks': 6}
+	generator_name: DCGAN__Generator
+	discriminator_optimizer_class: Adam
+	discriminator_optimizer_kwargs: {'lr': 0.0004, 'betas': [0.5, 0.999]}
+	generator_optimizer_class: Adam
+	generator_optimizer_kwargs: {'lr': 0.0001, 'betas': [0.5, 0.999]}
+	train_sample_transforms: ['ToFloatTensor', ['Downsample', {'downsample_ratio': 4}], ['Normalize', {'min': -1.026, 'max': 0.9854}]]
+	train_target_transforms: ['ToLongTensor']
+	eval_sample_transforms: ['ToFloatTensor', ['Downsample', {'downsample_ratio': 4}], ['Normalize', {'min': -1.026, 'max': 0.9854}]]
+	eval_target_transforms: ['ToLongTensor']
+	disc_steps_per_gen_step: 5.0
+	pert_l1_decay: 0.01
+	cal_temperature: True
+	pretrain_epochs: 5
+	total_epochs: 100
+	seed: 0
+	batch_size: 32
+	val_split_prop: 0.2
+Warning: unused kwargs with names 'save_dir', 'total_epochs'
+Initializing trial ...
+Results save directory: ../results/weird_gan__tinyaes_a/trial_2/results
+Model save directory: ../results/weird_gan__tinyaes_a/trial_2/models
+Generator:
+DCGAN__Generator(
+  (downsample_blocks): ModuleList(
+    (0): Sequential(
+      (0): Conv1d(1, 16, kernel_size=(11,), stride=(2,), padding=(5,))
+      (1): ReLU(inplace=True)
+    )
+    (1): Sequential(
+      (0): Conv1d(16, 32, kernel_size=(11,), stride=(2,), padding=(5,))
+      (1): BatchNorm1d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): ReLU(inplace=True)
+    )
+    (2): Sequential(
+      (0): Conv1d(32, 64, kernel_size=(11,), stride=(2,), padding=(5,))
+      (1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (2): ReLU(inplace=True)
+    )
+  )
+  (upsample_blocks): ModuleList(
+    (0): Sequential(
+      (0): Upsample(scale_factor=2.0, mode='nearest')
+      (1): Conv1d(64, 32, kernel_size=(11,), stride=(1,), padding=(5,))
+      (2): BatchNorm1d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (3): ReLU(inplace=True)
+    )
+    (1): Sequential(
+      (0): Upsample(scale_factor=2.0, mode='nearest')
+      (1): Conv1d(64, 16, kernel_size=(11,), stride=(1,), padding=(5,))
+      (2): BatchNorm1d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (3): ReLU(inplace=True)
+    )
+    (2): Sequential(
+      (0): Upsample(scale_factor=2.0, mode='nearest')
+      (1): Conv1d(32, 1, kernel_size=(11,), stride=(1,), padding=(5,))
+      (2): ReLU(inplace=True)
+    )
+  )
+)
+Discriminator:
+DCGAN__Discriminator(
+  	Rescaling temperature to 1.7014132738113403.
+  (feature_extractor): Sequential(
+    (0): Sequential(
+      (0): ParametrizedConv1d(
+        1, 16, kernel_size=(11,), stride=(2,), padding=(5,)
+        (parametrizations): ModuleDict(
+          (weight): ParametrizationList(
+            (0): _SpectralNorm()
+          )
+        )
+      )
+      (1): LeakyReLU(negative_slope=0.2)
+    )
+    (1): Sequential(
+      (0): ParametrizedConv1d(
+        16, 32, kernel_size=(11,), stride=(2,), padding=(5,)
+        (parametrizations): ModuleDict(
+          (weight): ParametrizationList(
+            (0): _SpectralNorm()
+          )
+        )
+      )
+      (1): LeakyReLU(negative_slope=0.2)
+      (2): BatchNorm1d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (2): Sequential(
+      (0): ParametrizedConv1d(
+        32, 64, kernel_size=(11,), stride=(2,), padding=(5,)
+        (parametrizations): ModuleDict(
+          (weight): ParametrizationList(
+            (0): _SpectralNorm()
+          )
+        )
+      )
+      (1): LeakyReLU(negative_slope=0.2)
+      (2): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (3): Sequential(
+      (0): ParametrizedConv1d(
+        64, 128, kernel_size=(11,), stride=(2,), padding=(5,)
+        (parametrizations): ModuleDict(
+          (weight): ParametrizationList(
+            (0): _SpectralNorm()
+          )
+        )
+      )
+      (1): LeakyReLU(negative_slope=0.2)
+      (2): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (4): Sequential(
+      (0): ParametrizedConv1d(
+        128, 256, kernel_size=(11,), stride=(2,), padding=(5,)
+        (parametrizations): ModuleDict(
+          (weight): ParametrizationList(
+            (0): _SpectralNorm()
+          )
+        )
+      )
+      (1): LeakyReLU(negative_slope=0.2)
+      (2): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (5): Sequential(
+      (0): ParametrizedConv1d(
+        256, 512, kernel_size=(11,), stride=(2,), padding=(5,)
+        (parametrizations): ModuleDict(
+          (weight): ParametrizationList(
+            (0): _SpectralNorm()
+          )
+        )
+      )
+      (1): LeakyReLU(negative_slope=0.2)
+      (2): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (6): AdaptiveAvgPool1d(output_size=1)
+    (7): Flatten(start_dim=1, end_dim=-1)
+  )
+  (head): ParametrizedLinear(
+    in_features=512, out_features=256, bias=True
+    (parametrizations): ModuleDict(
+      (weight): ParametrizationList(
+        (0): _SpectralNorm()
+      )
+    )
+  )
+)
+Train dataset: Google_TinyAES(length=65536, data_shape=(1, 20000), train=True, transform=Compose(
+    ToFloatTensor()
+    Downsample(downsample_ratio=4)
+    Normalize(min=-1.026, max=0.9854)
+), target_transform=Compose(
+    ToLongTensor()
+))
+Val dataset: Google_TinyAES(length=65536, data_shape=(1, 20000), train=True, transform=Compose(
+    ToFloatTensor()
+    Downsample(downsample_ratio=4)
+    Normalize(min=-1.026, max=0.9854)
+), target_transform=Compose(
+    ToLongTensor()
+))
+Test dataset: Google_TinyAES(length=65536, data_shape=(1, 20000), train=False, transform=Compose(
+    ToFloatTensor()
+    Downsample(downsample_ratio=4)
+    Normalize(min=-1.026, max=0.9854)
+), target_transform=Compose(
+    ToLongTensor()
+))
+Train/val lengths: 52429 / 13107
+Train/val/test dataloaders: DataLoader(batch_size=32, shuffle=True, num_workers=12, pin_memory=True) / DataLoader(batch_size=32, shuffle=False, num_workers=12, pin_memory=True) / DataLoader(batch_size=32, shuffle=False, num_workers=12, pin_memory=True)
+Gen/disc optimizers: Adam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.5, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.0001
+    maximize: False
+    weight_decay: 0
+) / Adam (
+Parameter Group 0
+    amsgrad: False
+    betas: [0.5, 0.999]
+    capturable: False
+    differentiable: False
+    eps: 1e-08
+    foreach: None
+    fused: None
+    lr: 0.0004
+    maximize: False
+    weight_decay: 0
+)
+Device: cuda:1
+Seed: 0
+Starting pretraining.
+
+Starting epoch -5 ...
+Training results:
+	msec_per_batch: 48.64311802918188
+	d_temp: 0.7283976743994434
+	d_train_loss: 4.66206873445121
+	d_train_acc: 0.07191885295912141
+	gen_train_loss: 0.006285648289718771
+	d_cal_loss: 4.105865244170091
+	d_cal_ece: 0.1130656938823173
+Validation results:
+	msec_per_batch: 13.020243419088969
+	d_temp: 0.41987890005111694
+	d_train_loss: 3.1695162587049532
+	d_train_acc: 0.13097721437740692
+	d_cal_ece: 0.13625616471214994
+	perturbation_l1_loss: 3.3141044303736236e-06
+	perturbation_confusion_loss: 7.788845887998256
+Test results:
+	msec_per_batch: 12.77571817766875
+	d_temp: 0.41987890005111694
+	d_train_loss: 3.153634794871323
+	d_train_acc: 0.130859375
+	d_cal_ece: 0.1338405355672876
+	perturbation_l1_loss: 3.4084479246521138e-06
+	perturbation_confusion_loss: 7.776169365039095
+
+Starting epoch -4 ...
+Training results:
+	msec_per_batch: 46.9338285330958
+	d_temp: 0.4180893963833565
+	d_train_loss: 3.638859904197893
+	d_train_acc: 0.17476210869667247
+	gen_train_loss: 1.5542454614163046e-06
+	d_cal_loss: 2.9046183103755743
+	d_cal_ece: 0.17380297296044664
+Validation results:
+	msec_per_batch: 13.772035822054235
+	d_temp: 0.3476529121398926
+	d_train_loss: 2.4144343675636666
+	d_train_acc: 0.26299342105263157
+	d_cal_ece: 0.22518128734536288
+	perturbation_l1_loss: 6.410220393731774e-07
+	perturbation_confusion_loss: 11.601639384758181
+Test results:
+	msec_per_batch: 13.249948971439153
+	d_temp: 0.3476529121398926
+	d_train_loss: 2.404056459781714
+	d_train_acc: 0.2686767578125
+	d_cal_ece: 0.22206944998470135
+	perturbation_l1_loss: 6.564951573273872e-07
+	perturbation_confusion_loss: 11.588409493677318
+
+Starting epoch -3 ...
+Training results:
+	msec_per_batch: 46.15491285783769
+	d_temp: 0.5170551013335577
+	d_train_loss: 2.8678312822403598
+	d_train_acc: 0.30361060918946825
+	gen_train_loss: 3.594045760158246e-07
+	d_cal_loss: 2.305217315904828
+	d_cal_ece: 0.2034362108969994
+Validation results:
+	msec_per_batch: 12.926586379074468
+	d_temp: 0.5346263647079468
+	d_train_loss: 2.2359995667527364
+	d_train_acc: 0.3186055840821566
+	d_cal_ece: 0.21437373050465816
+	perturbation_l1_loss: 1.9315628880594044e-07
+	perturbation_confusion_loss: 10.71731542029032
+Test results:
+	msec_per_batch: 13.50942068034783
+	d_temp: 0.5346263647079468
+	d_train_loss: 2.2348399714101106
+	d_train_acc: 0.32257080078125
+	d_cal_ece: 0.21808371014049044
+	perturbation_l1_loss: 2.0566057399051738e-07
+	perturbation_confusion_loss: 10.721288438886404
+
+Starting epoch -2 ...
+Training results:
+	msec_per_batch: 47.321144387953304
+	d_temp: 0.6388425860847184
+	d_train_loss: 2.414075705465418
+	d_train_acc: 0.3597042638569484
+	gen_train_loss: 1.1008467556485292e-07
+	d_cal_loss: 2.1286261477362753
+	d_cal_ece: 0.2039819235133281
+Validation results:
+	msec_per_batch: 12.16633131911115
+	d_temp: 0.5923939943313599
+	d_train_loss: 2.315549111366272
+	d_train_acc: 0.32983793324775357
+	d_cal_ece: 0.22484000254331565
+	perturbation_l1_loss: 7.105179489628242e-08
+	perturbation_confusion_loss: 11.126930053059647
+Test results:
+	msec_per_batch: 12.754136381670833
+	d_temp: 0.5923939943313599
+	d_train_loss: 2.31493053981103
+	d_train_acc: 0.3316497802734375
+	d_cal_ece: 0.22656178123361315
+	perturbation_l1_loss: 8.47425239070194e-08
+	perturbation_confusion_loss: 11.126191541552544
+
+Starting epoch -1 ...
+Training results:
+	msec_per_batch: 61.57332807986601
+	d_temp: 0.7287529291286201
+	d_train_loss: 2.1626917636561784
+	d_train_acc: 0.3909161308490168
+	gen_train_loss: 3.6205512960179526e-08
+	d_cal_loss: 2.027159780609382
+	d_cal_ece: 0.2062670595130228
+Validation results:
+	msec_per_batch: 29.908929613159923
+	d_temp: 0.6360143423080444
+	d_train_loss: 1.9281450524562742
+	d_train_acc: 0.40113125802310656
+	d_cal_ece: 0.21255588277084073
+	perturbation_l1_loss: 2.885205363728629e-08
+	perturbation_confusion_loss: 11.500634272505597
+Test results:
+	msec_per_batch: 22.946712903678417
+	d_temp: 0.6360143423080444
+	d_train_loss: 1.918420180096291
+	d_train_acc: 0.402252197265625
+	d_cal_ece: 0.21272175734338816
+	perturbation_l1_loss: 3.637928188230668e-08
+	perturbation_confusion_loss: 11.507288456428796
+Starting training.
+
+Starting epoch 0 ...
+Training results:
+	msec_per_batch: 1757.14775135024
+	d_temp: 0.7949157813251418
+	d_train_loss: 2.013682889240118
+	d_train_acc: 0.4137768691040503
+	d_cal_loss: 1.9724910396712083
+	d_cal_ece: 0.20583880523161746
+	perturbation_steps: 10.0
+	perturbation_dist: 7.81102728770778
+	gen_train_loss: 0.011412434097641469
+Validation results:
+	msec_per_batch: 17.7919175264312
+	d_temp: 0.9563928842544556
+	d_train_loss: 1.8592682783196612
+	d_train_acc: 0.42495988446726574
+	d_cal_ece: 0.19283005815090204
+	perturbation_l1_loss: 3.991813557656139e-08
+	perturbation_confusion_loss: 9.009044630934552
+Test results:
+	msec_per_batch: 18.132945011835545
+	d_temp: 0.9563928842544556
+	d_train_loss: 1.8569140700856224
+	d_train_acc: 0.43121337890625
+	d_cal_ece: 0.1939922114070214
+	perturbation_l1_loss: 4.353548684933165e-08
+	perturbation_confusion_loss: 9.015029523987323
+
+Starting epoch 1 ...
+Training results:
+	msec_per_batch: 1680.5520754413244
+	d_temp: 0.8352181357607164
+	d_train_loss: 1.87755571610321
+	d_train_acc: 0.4465433894964096
+	d_cal_loss: 1.8932336169892219
+	d_cal_ece: 0.20628518787115505
+	perturbation_steps: 10.0
+	perturbation_dist: 7.309053168748862
+	gen_train_loss: 0.010638900912888006
+Validation results:
+	msec_per_batch: 18.214507407676884
+	d_temp: 0.7703568935394287
+	d_train_loss: 1.7999412164455506
+	d_train_acc: 0.4389080551989731
+	d_cal_ece: 0.20614594762645116
+	perturbation_l1_loss: 5.213616710778498e-08
+	perturbation_confusion_loss: 10.838420814421118
+Test results:
+	msec_per_batch: 18.569746534340084
+	d_temp: 0.7703568935394287
+	d_train_loss: 1.8083393397391774
+	d_train_acc: 0.44171142578125
+	d_cal_ece: 0.20818431625593803
+	perturbation_l1_loss: 5.8185666296524234e-08
+	perturbation_confusion_loss: 10.84183657867834
+
+Starting epoch 2 ...
+Training results:
+	msec_per_batch: 1680.7415137450967
+	d_temp: 0.8731691871858938
+	d_train_loss: 2.2967736911599124
+	d_train_acc: 0.3727970854648707
+	d_cal_loss: 2.348019586095292
+	d_cal_ece: 0.18991905033288387
+	perturbation_steps: 10.0
+	perturbation_dist: 6.556389622002931
+	gen_train_loss: 0.010016233301422464
+Validation results:
+	msec_per_batch: 17.42464125330855
+	d_temp: 0.7136253118515015
+	d_train_loss: 3.2594787975636925
+	d_train_acc: 0.18427872272143775
+	d_cal_ece: 0.18262292142139702
+	perturbation_l1_loss: 0.14430307829525413
+	perturbation_confusion_loss: 9.634159181176162
+Test results:
+	msec_per_batch: 17.71580144064501
+	d_temp: 0.7136253118515015
+	d_train_loss: 3.258336206781678
+	d_train_acc: 0.1821136474609375
+	d_cal_ece: 0.18339615712466184
+	perturbation_l1_loss: 0.1443762415437959
+	perturbation_confusion_loss: 9.618846743833274
+
+Starting epoch 3 ...
+Training results:
+	msec_per_batch: 1679.1809679186147
+	d_temp: 0.8534574255920023
+	d_train_loss: 3.7200964060114825
+	d_train_acc: 0.11376836250997326
+	d_cal_loss: 3.7000647749094937
+	d_cal_ece: 0.12006200401679527
+	perturbation_steps: 10.0
+	perturbation_dist: 6.263707624662906
+	gen_train_loss: 0.01064014313201383
+Validation results:
+	msec_per_batch: 16.65026487024819
+	d_temp: 0.8281105756759644
+	d_train_loss: 3.400698271030333
+	d_train_acc: 0.13783295892169448
+	d_cal_ece: 0.13475897270368367
+	perturbation_l1_loss: 0.11476784969975308
+	perturbation_confusion_loss: 8.523233745156265
+Test results:
+	msec_per_batch: 17.038799495901912
+	d_temp: 0.8281105756759644
+	d_train_loss: 3.4123020893894136
+	d_train_acc: 0.137481689453125
+	d_cal_ece: 0.1344187048725871
+	perturbation_l1_loss: 0.11483221709204372
+	perturbation_confusion_loss: 8.515355508308858
+
+Starting epoch 4 ...
+Training results:
+	msec_per_batch: 1684.6586973691874
+	d_temp: 0.9374696146503609
+	d_train_loss: 3.7199967512639285
+	d_train_acc: 0.11012666025249919
+	d_cal_loss: 3.7984268278374476
+	d_cal_ece: 0.1134034811892411
+	perturbation_steps: 10.0
+	perturbation_dist: 6.3829630405531015
+	gen_train_loss: 0.010793083780288515
+Validation results:
+	msec_per_batch: 16.586392481734112
+	d_temp: 0.8736661076545715
+	d_train_loss: 3.8484516899760175
+	d_train_acc: 0.0837171052631579
+	d_cal_ece: 0.11288845197456639
+	perturbation_l1_loss: 0.4107331840003409
+	perturbation_confusion_loss: 8.042416291120576
+Test results:
+	msec_per_batch: 16.683797067264095
+	d_temp: 0.8736661076545715
+	d_train_loss: 3.850810509524308
+	d_train_acc: 0.0876617431640625
+	d_cal_ece: 0.11216683734710386
+	perturbation_l1_loss: 0.41076678270474076
+	perturbation_confusion_loss: 8.037736735772341
+
+Starting epoch 5 ...
+Training results:
+	msec_per_batch: 1684.9273086778269
+	d_temp: 0.9389528799813429
+	d_train_loss: 3.855477093341076
+	d_train_acc: 0.093224937813864
+	d_cal_loss: 3.9164443836479816
+	d_cal_ece: 0.1029026532066103
+	perturbation_steps: 10.0
+	perturbation_dist: 6.277071282039724
+	gen_train_loss: 0.010620555364803072
+Validation results:
+	msec_per_batch: 15.21527882785332
+	d_temp: 0.8538035154342651
+	d_train_loss: 4.181517579497361
+	d_train_acc: 0.07057926829268292
+	d_cal_ece: 0.10345157620656054
+	perturbation_l1_loss: 0.30727705613868994
+	perturbation_confusion_loss: 7.970648572503067
+Test results:
+	msec_per_batch: 16.655462060356513
+	d_temp: 0.8538035154342651
+	d_train_loss: 4.184323754627258
+	d_train_acc: 0.0703582763671875
+	d_cal_ece: 0.10288058917285525
+	perturbation_l1_loss: 0.30732089730736334
+	perturbation_confusion_loss: 7.966784867923707
+
+Starting epoch 6 ...
+Training results:
+	msec_per_batch: 1684.0197324979733
+	d_temp: 0.94649007885539
+	d_train_loss: 3.856062532853178
+	d_train_acc: 0.09340680292861502
+	d_cal_loss: 3.9368078836658658
+	d_cal_ece: 0.10050918297334151
+	perturbation_steps: 10.0
+	perturbation_dist: 6.267270111527282
+	gen_train_loss: 0.010443653008510396
+Validation results:
+	msec_per_batch: 15.584016487075061
+	d_temp: 0.8472884893417358
+	d_train_loss: 3.9754327052977025
+	d_train_acc: 0.0836168164313222
+	d_cal_ece: 0.11804604098745962
+	perturbation_l1_loss: 0.3022300116172651
+	perturbation_confusion_loss: 8.656765545868293
+Test results:
+	msec_per_batch: 16.42933751223609
+	d_temp: 0.8472884893417358
+	d_train_loss: 3.960321604157798
+	d_train_acc: 0.084808349609375
+	d_cal_ece: 0.1174725062919606
+	perturbation_l1_loss: 0.3023065984889399
+	perturbation_confusion_loss: 8.657545361667871
+
+Starting epoch 7 ...
+Training results:
+	msec_per_batch: 1680.7825793917402
+	d_temp: 0.965677983772471
+	d_train_loss: 3.7109629592930418
+	d_train_acc: 0.11006066081569438
+	d_cal_loss: 3.8116709454311257
+	d_cal_ece: 0.10910039485129343
+	perturbation_steps: 10.0
+	perturbation_dist: 5.665656493708992
+	gen_train_loss: 0.009361479669205548
+Validation results:
+	msec_per_batch: 16.116731022625434
+	d_temp: 1.028058409690857
+	d_train_loss: 3.8813872889774603
+	d_train_acc: 0.08577503209242619
+	d_cal_ece: 0.10067064877054313
+	perturbation_l1_loss: 0.14322268225070905
+	perturbation_confusion_loss: 7.668960575941132
+Test results:
+	msec_per_batch: 16.178896644618362
+	d_temp: 1.028058409690857
+	d_train_loss: 3.8648554590763524
+	d_train_acc: 0.0911102294921875
+	d_cal_ece: 0.10051051748541795
+	perturbation_l1_loss: 0.14328777949413052
+	perturbation_confusion_loss: 7.671341213164851
+
+Starting epoch 8 ...
+Training results:
+	msec_per_batch: 1679.4446225029583
+	d_temp: 0.9628472191448106
+	d_train_loss: 3.619223112737063
+	d_train_acc: 0.11752446379124232
+	d_cal_loss: 3.694180545754517
+	d_cal_ece: 0.11483231771912351
+	perturbation_steps: 10.0
+	perturbation_dist: 6.8198548004897
+	gen_train_loss: 0.010582304307592844
+Validation results:
+	msec_per_batch: 15.89332416813548
+	d_temp: 0.9885514974594116
+	d_train_loss: 3.9234044889124426
+	d_train_acc: 0.08562259306803595
+	d_cal_ece: 0.09866520566184346
+	perturbation_l1_loss: 0.18927569985389708
+	perturbation_confusion_loss: 7.7104064464569095
+Test results:
+	msec_per_batch: 15.977485476294532
+	d_temp: 0.9885514974594116
+	d_train_loss: 3.922984320204705
+	d_train_acc: 0.0811309814453125
+	d_cal_ece: 0.0973811433013907
+	perturbation_l1_loss: 0.1893245379687869
+	perturbation_confusion_loss: 7.711957443738356
+
+Starting epoch 9 ...
+Training results:
+	msec_per_batch: 1678.7161164065553
+	d_temp: 0.9959433777365763
+	d_train_loss: 3.834030599402101
+	d_train_acc: 0.09609371333364622
+	d_cal_loss: 3.9206695312257946
+	d_cal_ece: 0.10013108588800589
+	perturbation_steps: 10.0
+	perturbation_dist: 5.847827551197204
+	gen_train_loss: 0.009115450700819037
+Validation results:
+	msec_per_batch: 16.0262518719929
+	d_temp: 1.1813597679138184
+	d_train_loss: 4.054830370879754
+	d_train_acc: 0.07543324775353016
+	d_cal_ece: 0.0901822554947036
+	perturbation_l1_loss: 0.1868361176877487
+	perturbation_confusion_loss: 7.444917111280488
+Test results:
+	msec_per_batch: 15.938830986153334
+	d_temp: 1.1813597679138184
+	d_train_loss: 4.04855755798053
+	d_train_acc: 0.0716400146484375
+	d_cal_ece: 0.09114542967427042
+	perturbation_l1_loss: 0.18684768940875074
+	perturbation_confusion_loss: 7.43781373440288
+
+Starting epoch 10 ...
+Training results:
+	msec_per_batch: 1676.1143179306393
+	d_temp: 0.9253338431351937
+	d_train_loss: 3.5005362416419263
+	d_train_acc: 0.12490466748017083
+	d_cal_loss: 3.553066508663799
+	d_cal_ece: 0.11783208511769772
+	perturbation_steps: 10.0
+	perturbation_dist: 6.548646684815759
+	gen_train_loss: 0.00982507231676615
+Validation results:
+	msec_per_batch: 17.403404584745083
+	d_temp: 0.8780069947242737
+	d_train_loss: 3.417132699780348
+	d_train_acc: 0.14537869062901157
+	d_cal_ece: 0.1380291044984649
+	perturbation_l1_loss: 0.0829732065338914
+	perturbation_confusion_loss: 9.300307473903748
+Test results:
+	msec_per_batch: 17.062454481143504
+	d_temp: 0.8780069947242737
+	d_train_loss: 3.4101173240924254
+	d_train_acc: 0.14129638671875
+	d_cal_ece: 0.13325389448982605
+	perturbation_l1_loss: 0.0830001423273643
+	perturbation_confusion_loss: 9.296216316055506
+
+Starting epoch 11 ...
+Training results:
+	msec_per_batch: 1674.5136909484863
+	d_temp: 0.9718320303169818
+	d_train_loss: 3.4944592370282885
+	d_train_acc: 0.11903218425869433
+	d_cal_loss: 3.572556496684765
+	d_cal_ece: 0.11382754659479061
+	perturbation_steps: 10.0
+	perturbation_dist: 6.5261486108879065
+	gen_train_loss: 0.009228125240209453
+Validation results:
+	msec_per_batch: 16.412829350262154
+	d_temp: 1.001987338066101
+	d_train_loss: 4.030718321335025
+	d_train_acc: 0.08407413350449293
+	d_cal_ece: 0.10596354242141653
+	perturbation_l1_loss: 0.14706115991604038
+	perturbation_confusion_loss: 8.163349440039658
+Test results:
+	msec_per_batch: 16.31099598389119
+	d_temp: 1.001987338066101
+	d_train_loss: 4.018941628979519
+	d_train_acc: 0.0823211669921875
+	d_cal_ece: 0.10548489951906959
+	perturbation_l1_loss: 0.1471357318587252
+	perturbation_confusion_loss: 8.168324520811439
+
+Starting epoch 12 ...
+Training results:
+	msec_per_batch: 1676.119985194087
+	d_temp: 0.9772373664444579
+	d_train_loss: 3.5513142800462036
+	d_train_acc: 0.11723699957760361
+	d_cal_loss: 3.624844536539838
+	d_cal_ece: 0.11383101923358266
+	perturbation_steps: 10.0
+	perturbation_dist: 6.382276920003629
+	gen_train_loss: 0.008996423200023466
+Validation results:
+	msec_per_batch: 16.771356803614918
+	d_temp: 0.7203009724617004
+	d_train_loss: 3.4169462547069642
+	d_train_acc: 0.14436376765083442
+	d_cal_ece: 0.16001631099639868
+	perturbation_l1_loss: 0.11195804631201232
+	perturbation_confusion_loss: 10.929157936282275
+Test results:
+	msec_per_batch: 17.581911989487708
+	d_temp: 0.7203009724617004
+	d_train_loss: 3.420093781547621
+	d_train_acc: 0.1388092041015625
+	d_cal_ece: 0.16404487428553693
+	perturbation_l1_loss: 0.11199740803203895
+	perturbation_confusion_loss: 10.936022330075502
+
+Starting epoch 13 ...
+Training results:
+	msec_per_batch: 1678.8925978769391
+	d_temp: 0.9692704401196613
+	d_train_loss: 3.217504167789508
+	d_train_acc: 0.16171035340498427
+	d_cal_loss: 3.320086409363389
+	d_cal_ece: 0.13210444887412476
+	perturbation_steps: 10.0
+	perturbation_dist: 7.099748080658985
+	gen_train_loss: 0.009847965326433608
+Validation results:
+	msec_per_batch: 16.76491042346489
+	d_temp: 1.1163921356201172
+	d_train_loss: 3.232411892821149
+	d_train_acc: 0.1645860077021823
+	d_cal_ece: 0.12792889097841775
+	perturbation_l1_loss: 0.16848576897528114
+	perturbation_confusion_loss: 7.964280777442746
+Test results:
+	msec_per_batch: 16.82214404270053
+	d_temp: 1.1163921356201172
+	d_train_loss: 3.2199771081795916
+	d_train_acc: 0.164215087890625
+	d_cal_ece: 0.12710689932828245
+	perturbation_l1_loss: 0.1685613833615207
+	perturbation_confusion_loss: 7.974167677341029
+
+Starting epoch 14 ...
+Training results:
+	msec_per_batch: 1677.5893862807511
+	d_temp: 0.9679500117688881
+	d_train_loss: 3.2095455743686103
+	d_train_acc: 0.1631711409395973
+	d_cal_loss: 3.2962751414733664
+	d_cal_ece: 0.13425730862055266
+	perturbation_steps: 10.0
+	perturbation_dist: 6.6355116520452935
+	gen_train_loss: 0.009180765774169373
+Validation results:
+	msec_per_batch: 16.472858214959867
+	d_temp: 1.1084083318710327
+	d_train_loss: 4.667919297334625
+	d_train_acc: 0.055640243902439025
+	d_cal_ece: 0.11895238454567222
+	perturbation_l1_loss: 0.25217818901306244
+	perturbation_confusion_loss: 8.18358024271523
+Test results:
+	msec_per_batch: 16.548037016298622
+	d_temp: 1.1084083318710327
+	d_train_loss: 4.669197568087839
+	d_train_acc: 0.0543670654296875
+	d_cal_ece: 0.1199930224520358
+	perturbation_l1_loss: 0.2522766558395233
+	perturbation_confusion_loss: 8.182166821323335
+
+Starting epoch 15 ...
+Training results:
+	msec_per_batch: 1677.673201433546
+	d_temp: 1.0436492258270316
+	d_train_loss: 3.3796375897543105
+	d_train_acc: 0.13888921481203362
+	d_cal_loss: 3.531665910955898
+	d_cal_ece: 0.12203822344941581
+	perturbation_steps: 10.0
+	perturbation_dist: 6.323787218204696
+	gen_train_loss: 0.008883625280328482
+Validation results:
+	msec_per_batch: 15.436250691297577
+	d_temp: 1.239209771156311
+	d_train_loss: 3.3282954088071497
+	d_train_acc: 0.14324855584082158
+	d_cal_ece: 0.10803498328640694
+	perturbation_l1_loss: 0.20697924124031533
+	perturbation_confusion_loss: 7.8680650618018175
+Test results:
+	msec_per_batch: 15.724282576935366
+	d_temp: 1.239209771156311
+	d_train_loss: 3.333899626042694
+	d_train_acc: 0.1365966796875
+	d_cal_ece: 0.10697232237544085
+	perturbation_l1_loss: 0.20702943561627762
+	perturbation_confusion_loss: 7.8671667638700455
+
+Starting epoch 16 ...
+Training results:
+	msec_per_batch: 1673.9028933177713
+	d_temp: 1.011466056526689
+	d_train_loss: 3.2383744496990805
+	d_train_acc: 0.15261709766743325
+	d_cal_loss: 3.36380475494031
+	d_cal_ece: 0.12922546201822524
+	perturbation_steps: 10.0
+	perturbation_dist: 6.420675264586002
+	gen_train_loss: 0.008616966070088954
+Validation results:
+	msec_per_batch: 16.575173250058803
+	d_temp: 0.9641197919845581
+	d_train_loss: 3.426637808288016
+	d_train_acc: 0.12939666238767653
+	d_cal_ece: 0.1324969293685948
+	perturbation_l1_loss: 0.12457381892131596
+	perturbation_confusion_loss: 9.142616516206322
+Test results:
+	msec_per_batch: 17.3567305598408
+	d_temp: 0.9641197919845581
+	d_train_loss: 3.427807155181654
+	d_train_acc: 0.1309356689453125
+	d_cal_ece: 0.13200451093325682
+	perturbation_l1_loss: 0.12463489882429712
+	perturbation_confusion_loss: 9.131351278163493
+
+Starting epoch 17 ...
+Training results:
+	msec_per_batch: 1674.5598672293104
+	d_temp: 0.9756943615854623
+	d_train_loss: 3.1974651468752944
+	d_train_acc: 0.1564875979724973
+	d_cal_loss: 3.2668502761359037
+	d_cal_ece: 0.1311681825233495
+	perturbation_steps: 10.0
+	perturbation_dist: 7.154642926079053
+	gen_train_loss: 0.009493645196581196
+Validation results:
+	msec_per_batch: 16.915318735634408
+	d_temp: 0.9243910312652588
+	d_train_loss: 3.4435332054045142
+	d_train_acc: 0.12629974326059049
+	d_cal_ece: 0.12757701283184494
+	perturbation_l1_loss: 0.13818574903941735
+	perturbation_confusion_loss: 9.424624766373054
+Test results:
+	msec_per_batch: 16.932587446644902
+	d_temp: 0.9243910312652588
+	d_train_loss: 3.4310593989212066
+	d_train_acc: 0.125457763671875
+	d_cal_ece: 0.12875052121307817
+	perturbation_l1_loss: 0.13825592999637593
+	perturbation_confusion_loss: 9.425565090030432
+
+Starting epoch 18 ...
+Training results:
+	msec_per_batch: 1673.1609466592301
+	d_temp: 1.0349990855345572
+	d_train_loss: 3.4536505910665105
+	d_train_acc: 0.12449400431782984
+	d_cal_loss: 3.5677426738517903
+	d_cal_ece: 0.11309090222824704
+	perturbation_steps: 10.0
+	perturbation_dist: 7.686823509519618
+	gen_train_loss: 0.010379030970167312
+Validation results:
+	msec_per_batch: 15.931282101607904
+	d_temp: 0.9570574760437012
+	d_train_loss: 3.9428349105323233
+	d_train_acc: 0.09431161745827986
+	d_cal_ece: 0.12157827875599629
+	perturbation_l1_loss: 0.15261262179147905
+	perturbation_confusion_loss: 8.99534880940507
+Test results:
+	msec_per_batch: 16.633960040984675
+	d_temp: 0.9570574760437012
+	d_train_loss: 3.9236414121696725
+	d_train_acc: 0.090789794921875
+	d_cal_ece: 0.12054835464550706
+	perturbation_l1_loss: 0.15263706666155485
+	perturbation_confusion_loss: 8.984254317823797
+
+Starting epoch 19 ...
+Training results:
+	msec_per_batch: 1675.860952895178
+	d_temp: 1.0308590835009208
+	d_train_loss: 3.3585690791611267
+	d_train_acc: 0.14065359975594874
+	d_cal_loss: 3.4708278539924087
+	d_cal_ece: 0.12059909933206328
+	perturbation_steps: 10.0
+	perturbation_dist: 6.899430581189077
+	gen_train_loss: 0.009297282701295541
+Validation results:
+	msec_per_batch: 15.502118645644769
+	d_temp: 1.084356427192688
+	d_train_loss: 3.316513292382403
+	d_train_acc: 0.13758023106546854
+	d_cal_ece: 0.11879105983165707
+	perturbation_l1_loss: 0.15264385724213064
+	perturbation_confusion_loss: 8.54627002623023
+Test results:
+	msec_per_batch: 16.825857936870307
+	d_temp: 1.084356427192688
+	d_train_loss: 3.3080879473127425
+	d_train_acc: 0.13482666015625
+	d_cal_ece: 0.11616554521606304
+	perturbation_l1_loss: 0.15267121931537986
+	perturbation_confusion_loss: 8.545149353798479
+
+Starting epoch 20 ...
+Training results:
+	msec_per_batch: 1674.5453070372325
+	d_temp: 1.070900963711404
+	d_train_loss: 3.593425436089721
+	d_train_acc: 0.11386369502980241
+	d_cal_loss: 3.7224001912098967
+	d_cal_ece: 0.1036421581307259
+	perturbation_steps: 10.0
+	perturbation_dist: 6.709705322160634
+	gen_train_loss: 0.009315112132909465
+Validation results:
+	msec_per_batch: 15.371658597341398
+	d_temp: 1.0067839622497559
+	d_train_loss: 4.281960366993416
+	d_train_acc: 0.058893613607188706
+	d_cal_ece: 0.06935582601851444
+	perturbation_l1_loss: 0.19722559379368293
+	perturbation_confusion_loss: 7.268333089642408
+Test results:
+	msec_per_batch: 16.309063433902338
+	d_temp: 1.0067839622497559
+	d_train_loss: 4.279517937102355
+	d_train_acc: 0.057220458984375
+	d_cal_ece: 0.07052765362823266
+	perturbation_l1_loss: 0.1972251304978272
+	perturbation_confusion_loss: 7.2814245882909745
+
+Starting epoch 21 ...
+Training results:
+	msec_per_batch: 1676.2888668576998
+	d_temp: 1.0515710977318085
+	d_train_loss: 3.6749292793180826
+	d_train_acc: 0.10963973107429482
+	d_cal_loss: 3.79395970576707
+	d_cal_ece: 0.10153238599877884
+	perturbation_steps: 10.0
+	perturbation_dist: 6.857084691342228
+	gen_train_loss: 0.009816085691891314
+Validation results:
+	msec_per_batch: 16.903640100432604
+	d_temp: 1.040819764137268
+	d_train_loss: 3.4398323047451855
+	d_train_acc: 0.1210125160462131
+	d_cal_ece: 0.11614236366458056
+	perturbation_l1_loss: 0.11468086624290885
+	perturbation_confusion_loss: 8.82038533513139
+Test results:
+	msec_per_batch: 16.59730894677341
+	d_temp: 1.040819764137268
+	d_train_loss: 3.43497559230309
+	d_train_acc: 0.1192169189453125
+	d_cal_ece: 0.11723586304196942
+	perturbation_l1_loss: 0.1146929673050181
+	perturbation_confusion_loss: 8.824397665448487
+
+Starting epoch 22 ...
+Training results:
+	msec_per_batch: 1680.5021580363862
+	d_temp: 0.9092923643532288
+	d_train_loss: 2.8903925439946314
+	d_train_acc: 0.20828982259351386
+	d_cal_loss: 2.942504163556451
+	d_cal_ece: 0.14763343831282189
+	perturbation_steps: 10.0
+	perturbation_dist: 8.617270466749092
+	gen_train_loss: 0.01229136109078696
+Validation results:
+	msec_per_batch: 18.63678527692469
+	d_temp: 0.8779531121253967
+	d_train_loss: 2.5362006667183667
+	d_train_acc: 0.252017811296534
+	d_cal_ece: 0.17058007777100656
+	perturbation_l1_loss: 0.08585107070280285
+	perturbation_confusion_loss: 11.112522613711473
+Test results:
+	msec_per_batch: 17.525839891750365
+	d_temp: 0.8779531121253967
+	d_train_loss: 2.5222334169084206
+	d_train_acc: 0.2557373046875
+	d_cal_ece: 0.1723941900745558
+	perturbation_l1_loss: 0.08586698581711971
+	perturbation_confusion_loss: 11.144616742618382
+
+Starting epoch 23 ...
+Training results:
+	msec_per_batch: 1675.4111524899606
+	d_temp: 1.0044433433810265
+	d_train_loss: 2.938636034999845
+	d_train_acc: 0.2009213521377951
+	d_cal_loss: 3.039510537532134
+	d_cal_ece: 0.14427973629930638
+	perturbation_steps: 10.0
+	perturbation_dist: 7.594656483478138
+	gen_train_loss: 0.010153449933679734
+Validation results:
+	msec_per_batch: 15.26134640647144
+	d_temp: 1.2089498043060303
+	d_train_loss: 3.9753684311378295
+	d_train_acc: 0.08183568677792041
+	d_cal_ece: 0.10139869396097777
+	perturbation_l1_loss: 0.2291836010246742
+	perturbation_confusion_loss: 8.078478805030265
+Test results:
+	msec_per_batch: 16.256208460777998
+	d_temp: 1.2089498043060303
+	d_train_loss: 3.9644935425603762
+	d_train_acc: 0.0809478759765625
+	d_cal_ece: 0.10172853528365522
+	perturbation_l1_loss: 0.22919064575398806
+	perturbation_confusion_loss: 8.085823451168835
+
+Starting epoch 24 ...
+Training results:
+	msec_per_batch: 1672.0927687011308
+	d_temp: 1.0684322930458772
+	d_train_loss: 3.5215577845023565
+	d_train_acc: 0.12113829961984325
+	d_cal_loss: 3.6492275093444024
+	d_cal_ece: 0.11011932556227058
+	perturbation_steps: 10.0
+	perturbation_dist: 6.504013443576451
+	gen_train_loss: 0.009245136049248575
+Validation results:
+	msec_per_batch: 15.864384914026028
+	d_temp: 1.1555067300796509
+	d_train_loss: 3.3925182284378423
+	d_train_acc: 0.12764762516046213
+	d_cal_ece: 0.11602367210860659
+	perturbation_l1_loss: 0.13505397213668358
+	perturbation_confusion_loss: 8.267075935224208
+Test results:
+	msec_per_batch: 16.399443003116176
+	d_temp: 1.1555067300796509
+	d_train_loss: 3.3944138556253165
+	d_train_acc: 0.1271209716796875
+	d_cal_ece: 0.11346462226174481
+	perturbation_l1_loss: 0.13508399559214013
+	perturbation_confusion_loss: 8.275244724471122
+
+Starting epoch 25 ...
+Training results:
+	msec_per_batch: 1675.7880074394557
+	d_temp: 1.0149554231677425
+	d_train_loss: 3.291066270837557
+	d_train_acc: 0.13845948514572676
+	d_cal_loss: 3.371376179863288
+	d_cal_ece: 0.12074541136886086
+	perturbation_steps: 10.0
+	perturbation_dist: 6.2554947972662225
+	gen_train_loss: 0.008376086530893676
+Validation results:
+	msec_per_batch: 15.67506716891033
+	d_temp: 0.9545222520828247
+	d_train_loss: 3.415173629435097
+	d_train_acc: 0.12241254813863928
+	d_cal_ece: 0.12231881457676248
+	perturbation_l1_loss: 0.10744795334048388
+	perturbation_confusion_loss: 9.508906510981118
+Test results:
+	msec_per_batch: 16.672192936763167
+	d_temp: 0.9545222520828247
+	d_train_loss: 3.4110946806613356
+	d_train_acc: 0.124420166015625
+	d_cal_ece: 0.12093313331115496
+	perturbation_l1_loss: 0.10749750115428469
+	perturbation_confusion_loss: 9.514133767224848
+
+Starting epoch 26 ...
+Training results:
+	msec_per_batch: 1674.126940496234
+	d_temp: 1.046567810752757
+	d_train_loss: 3.2076037567224787
+	d_train_acc: 0.15360855587365654
+	d_cal_loss: 3.3306952002864554
+	d_cal_ece: 0.12424814910869397
+	perturbation_steps: 10.0
+	perturbation_dist: 6.859112669568543
+	gen_train_loss: 0.009224335561913726
+Validation results:
+	msec_per_batch: 15.962271757823665
+	d_temp: 1.332688570022583
+	d_train_loss: 3.5179010838997073
+	d_train_acc: 0.12205551989730425
+	d_cal_ece: 0.1042389724312759
+	perturbation_l1_loss: 0.24842347397309977
+	perturbation_confusion_loss: 7.950532571280875
+Test results:
+	msec_per_batch: 16.011391491396353
+	d_temp: 1.332688570022583
+	d_train_loss: 3.4987583936890587
+	d_train_acc: 0.1217193603515625
+	d_cal_ece: 0.1048520629401537
+	perturbation_l1_loss: 0.24843003788555507
+	perturbation_confusion_loss: 7.945559123530984
+
+Starting epoch 27 ...

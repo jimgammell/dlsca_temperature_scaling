@@ -1,0 +1,195 @@
+diff --git a/config_files/htune/htune__dcgan__tinyaes.json b/config_files/htune/htune__dcgan__tinyaes.json
+index 098cf08..afc52ed 100644
+--- a/config_files/htune/htune__dcgan__tinyaes.json
++++ b/config_files/htune/htune__dcgan__tinyaes.json
+@@ -1,5 +1,7 @@
+ {
++    "wandb_project": "htune__dcgan__tinyaes",
+     "save_dir": "htune__dcgan__tinyaes",
++    "train_gan": true,
+     "dataset_name": "GoogleTinyAES",
+     "dataset_kwargs": {
+         "target_byte": 7,
+@@ -49,10 +51,10 @@
+         "method": "grid",
+         "name": "dcgan_tinyaes_htune",
+         "parameters": {
+-            "disc_steps_per_gen_step": [0.2, 1.0, 5.0],
+-            "max_pert": [1e-2, 1e-1, 1e0],
+-            "pert_l1_decay": [0.0, 1e-6, 1e-4, 1e-2],
+-            "gen_drift_decay": [0.0, 1e-4, 1e-2]
++            "disc_steps_per_gen_step": {"values": [0.2, 1.0, 5.0]},
++            "max_pert": {"values": [1e-2, 1e-1, 1e0]},
++            "pert_l1_decay": {"values": [0.0, 1e-6, 1e-4, 1e-2]},
++            "gen_drift_decay": {"values": [0.0, 1e-4, 1e-2]}
+         }
+     }
+ }
+\ No newline at end of file
+diff --git a/src/config/__init__.py b/src/config/__init__.py
+index 6e1080e..746457b 100644
+--- a/src/config/__init__.py
++++ b/src/config/__init__.py
+@@ -55,7 +55,7 @@ def load_config(config, train=True):
+ # Remove all nested dictionaries and concatenate nested keys, i.e. {key1: {key2: val}} becomes {key1-key2: val}.
+ #   Necessary because the WandB hyperparameter tuners can't handle nested dictionaries.
+ def denest_dict(d, delim='-'):
+-    if any(delim in key for k in d.keys()):
++    if any(delim in key for key in d.keys()):
+         raise Exception('Delimiter character is used in one or more keys: \'{}\''.format(
+             delim, '\', \''.join(list(d.keys()))
+         ))
+diff --git a/src/datasets/common.py b/src/datasets/common.py
+index fa3d2ed..6b05f3e 100644
+--- a/src/datasets/common.py
++++ b/src/datasets/common.py
+@@ -46,9 +46,10 @@ class DatasetBase(Dataset):
+         self.transform = transform
+         self.target_transform = target_transform
+         self.train = train
+-        self.length = len(self.data)
+-        assert hasattr(self, 'targets')
+-        assert self.length == len(self.targets)
++        if hasattr(self, 'data'):
++            self.length = len(self.data)
++        else:
++            assert hasattr(self, 'length')
+         self.return_metadata = False
+         eg_data, _ = self.__getitem__(0)
+         self.data_shape = eg_data.shape
+diff --git a/src/datasets/google_tinyaes.py b/src/datasets/google_tinyaes.py
+index 5cd7925..126a296 100644
+--- a/src/datasets/google_tinyaes.py
++++ b/src/datasets/google_tinyaes.py
+@@ -71,12 +71,12 @@ class GoogleTinyAES(DatasetBase):
+             resource_path = google_scaaml.get_dataset_path(train)
+         self.resource_path = resource_path
+         database_file = h5py.File(os.path.join(resource_path, 'data.hdf5'))
+-        self.data = database_file['traces']
+-        self.targets = database_file['{}__{}'.format(target_attack_point, target_byte)]
+-        self.metadata = {key: val for key, val in database_file.items() if key != 'traces'}
+-        self.length = len(self.data)
+-        assert self.length == len(self.targets)
+-        assert all(self.length == len(val) for val in self.metadata.values())
++        data = database_file['traces']
++        targets = database_file['{}__{}'.format(target_attack_point, target_byte)]
++        metadata = {key: val for key, val in database_file.items() if key != 'traces'}
++        self.length = len(data)
++        assert self.length == len(targets)
++        assert all(self.length == len(val) for val in metadata.values())
+         self.name = 'Google_TinyAES'
+         self.data_mean = -0.2751
+         self.data_stdev = 0.1296
+@@ -84,10 +84,11 @@ class GoogleTinyAES(DatasetBase):
+         super().__init__(train=train, **kwargs)
+     
+     def load_idx(self, idx):
+-        trace = self.data[idx, :, self.interval_to_use[0]:self.interval_to_use[1]]
+-        target = self.targets[idx]
++        database_file = h5py.File(os.path.join(resource_path, 'data.hdf5'))
++        data = database_file['traces'][idx, :, self.interval_to_use[0]:self.interval_to_use[1]]
++        target = database_file['{}__{}'.format(self.target_attack_point, self.target_byte)][idx]
+         if hasattr(self, 'return_metadata') and self.return_metadata:
+-            metadata = {key: val[idx] for key, val in self.metadata.items()}
++            metadata = {key: val[idx] for key, val in database_file.items() if key != 'traces'}
+             return trace, target, metadata
+         else:
+             return trace, target
+diff --git a/src/main.py b/src/main.py
+index bad6826..0ec4b6b 100644
+--- a/src/main.py
++++ b/src/main.py
+@@ -87,18 +87,18 @@ def spawn_agent_(sweep_id, project, device, classifier_settings, print_to_termin
+         sweep_id, project=project, function=lambda: run_wandb_trial_(device, classifier_settings, print_to_terminal, train_gan)
+     )
+ 
+-def run_wandb_trial_(device, classifier_settings, print_to_terminal, train_gan):
++def run_wandb_trial_(device, settings, print_to_terminal, train_gan):
+     try:
+-        classifier_settings = copy.deepcopy(classifier_settings)
++        settings = copy.deepcopy(settings)
+         wandb.init()
+         wandb_config = dict(wandb.config)
+         wandb_config = config.nest_dict(wandb_config)
+         for wc_key, wc_val in wandb_config.items():
+-            if (wc_key in classifier_settings.items()) and isinstance(wc_val, dict):
+-                classifier_settings[wc_key].update(wc_val)
++            if (wc_key in settings.items()) and isinstance(wc_val, dict):
++                settings[wc_key].update(wc_val)
+             else:
+-                classifier_settings[wc_key] = wc_val
+-        save_dir, results_save_dir, mode_save_dir = get_save_dir(settings['save_dir'])
++                settings[wc_key] = wc_val
++        save_dir, results_save_dir, model_save_dir = get_save_dir(settings['save_dir'])
+         if not print_to_terminal:
+             config.specify_log_file(os.path.join(save_dir, 'log.txt'))
+         with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
+@@ -107,14 +107,16 @@ def run_wandb_trial_(device, classifier_settings, print_to_terminal, train_gan):
+             trainer_class = GANTrainer
+         else:
+             trainer_class = ClassifierTrainer
+-        trainer = trainer_class(using_wandb=True, **classifier_settings)
++        trainer = trainer_class(using_wandb=True, **settings)
+         trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+     except Exception:
++        traceback.print_exc()
+         with open(os.path.join(save_dir, 'log.txt'), 'a') as F:
+             traceback.print_exc(file=F)
+         raise Exception('Trial code crashed.')
+ 
+-def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False, train_gan=False):
++def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False, train_gan=False, time_objects=False):
++    del time_objects ##FIXME
+     if not hasattr(devices, '__len__'):
+         devices = [devices]
+     wandb_config = settings['wandb_config']
+@@ -123,7 +125,7 @@ def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False
+     if 'sweep_id' in settings:
+         sweep_id = settings['sweep_id']
+     else:
+-        sweep_id = wandb.sweep(sweep=wandb.config, project=settings['wandb_project'])
++        sweep_id = wandb.sweep(sweep=wandb_config, project=settings['wandb_project'])
+     config.set_num_agents(trials_per_gpu*len(devices))
+     if trials_per_gpu*len(devices) == 1:
+         spawn_agent(sweep_id, devices[0], classifier_settings)
+diff --git a/src/models/gans/dcgan.py b/src/models/gans/dcgan.py
+index d46b317..368e235 100644
+--- a/src/models/gans/dcgan.py
++++ b/src/models/gans/dcgan.py
+@@ -116,7 +116,7 @@ class DCGAN__Generator(nn.Module):
+             nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2),
+             nn.Tanh()
+         )
+-        self.register_parameter('output_scalar', torch.tensor(0, dtype=torch.float))
++        self.output_scalar = nn.Parameter(torch.tensor(0, dtype=torch.float))
+         
+     def forward(self, x):
+         #x_orig = x.clone()
+diff --git a/src/train/weird_gan.py b/src/train/weird_gan.py
+index 6decef2..a973739 100644
+--- a/src/train/weird_gan.py
++++ b/src/train/weird_gan.py
+@@ -1,6 +1,7 @@
+ import os
+ import json
+ import random
++from numbers import Number
+ import time
+ from tqdm import tqdm
+ from copy import copy
+@@ -57,11 +58,11 @@ class GANTrainer:
+         assert isinstance(self.discriminator_optimizer_kwargs, dict)
+         assert hasattr(optim, self.generator_optimizer_class)
+         assert isinstance(self.generator_optimizer_kwargs, dict)
+-        assert isinstance(self.pert_l1_decay, float)
+-        assert isinstance(self.gen_drift_decay, float)
+-        assert isinstance(self.max_pert, float)
++        assert isinstance(self.pert_l1_decay, Number)
++        assert isinstance(self.gen_drift_decay, Number)
++        assert isinstance(self.max_pert, Number)
+         assert isinstance(self.cal_temperature, bool)
+-        assert isinstance(self.disc_steps_per_gen_step, float)
++        assert isinstance(self.disc_steps_per_gen_step, Number)
+         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
+                         self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms]:
+             assert isinstance(tf_list, list)

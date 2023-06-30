@@ -46,9 +46,10 @@ class DatasetBase(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.train = train
-        self.length = len(self.data)
-        assert hasattr(self, 'targets')
-        assert self.length == len(self.targets)
+        if hasattr(self, 'data'):
+            self.length = len(self.data)
+        else:
+            assert hasattr(self, 'length')
         self.return_metadata = False
         eg_data, _ = self.__getitem__(0)
         self.data_shape = eg_data.shape
@@ -93,7 +94,7 @@ class DataLoader(torch.utils.data.DataLoader):
     def __init__(self, dataset, batch_size=32, shuffle=False):
         super().__init__(
             dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True,
-            num_workers=TOTAL_DATALOADER_WORKERS//config.get_num_agents()
+            num_workers=4 #TOTAL_DATALOADER_WORKERS//config.get_num_agents()
         )
         self.print_kwargs = {
             'batch_size': batch_size,

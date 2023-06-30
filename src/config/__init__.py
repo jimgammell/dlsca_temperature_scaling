@@ -55,7 +55,7 @@ def load_config(config, train=True):
 # Remove all nested dictionaries and concatenate nested keys, i.e. {key1: {key2: val}} becomes {key1-key2: val}.
 #   Necessary because the WandB hyperparameter tuners can't handle nested dictionaries.
 def denest_dict(d, delim='-'):
-    if any(delim in key for k in d.keys()):
+    if any(delim in key for key in d.keys()):
         raise Exception('Delimiter character is used in one or more keys: \'{}\''.format(
             delim, '\', \''.join(list(d.keys()))
         ))

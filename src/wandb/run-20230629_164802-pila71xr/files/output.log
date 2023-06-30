@@ -1,0 +1,31 @@
+  0%|                                                                                                                                             | 0/1639 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 111, in run_wandb_trial_
+    trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 456, in train_model
+    train_erv = self.train_epoch()
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 372, in train_epoch
+    for bidx, (batch, val_batch) in enumerate(zip(tqdm(self.train_dataloader), self.cal_dataloader)):
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 441, in __iter__
+    return self._get_iterator()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 388, in _get_iterator
+    return _MultiProcessingDataLoaderIter(self)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/torch/utils/data/dataloader.py", line 1042, in __init__
+    w.start()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/process.py", line 121, in start
+    self._popen = self._Popen(self)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/context.py", line 224, in _Popen
+    return _default_context.get_context().Process._Popen(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/context.py", line 284, in _Popen
+    return Popen(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_spawn_posix.py", line 32, in __init__
+    super().__init__(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_fork.py", line 19, in __init__
+    self._launch(process_obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_spawn_posix.py", line 47, in _launch
+    reduction.dump(process_obj, fp)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/reduction.py", line 60, in dump
+    ForkingPickler(file, protocol).dump(obj)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/site-packages/h5py/_hl/base.py", line 368, in __getnewargs__
+    raise TypeError("h5py objects cannot be pickled")
+TypeError: h5py objects cannot be pickled

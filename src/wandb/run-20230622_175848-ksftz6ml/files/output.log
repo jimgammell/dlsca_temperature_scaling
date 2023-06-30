@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 72, in run_wandb_trial_
+    trainer = ClassifierTrainer(using_wandb=True, **classifier_settings)
+  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/classifier.py", line 72, in __init__
+    assert self.selection_metric in self.eval_metrics.keys()
+AssertionError

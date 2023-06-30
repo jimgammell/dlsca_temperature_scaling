@@ -1,0 +1,42 @@
+[34m[1mwandb[39m[22m: Ctrl + C detected. Stopping sweep.
+Process Process-2:
+Traceback (most recent call last):
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/process.py", line 318, in _bootstrap
+    util._exit_function()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/util.py", line 357, in _exit_function
+    p.join()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/process.py", line 149, in join
+    res = self._popen.wait(timeout)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_fork.py", line 43, in wait
+    return self.poll(os.WNOHANG if timeout == 0.0 else 0)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/popen_fork.py", line 27, in poll
+    pid, sts = os.waitpid(self.pid, flag)
+KeyboardInterrupt
+During handling of the above exception, another exception occurred:
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/spawn.py", line 116, in spawn_main
+    exitcode = _main(fd, parent_sentinel)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/spawn.py", line 129, in _main
+    return self._bootstrap(parent_sentinel)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/multiprocessing/process.py", line 331, in _bootstrap
+    traceback.print_exc()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/traceback.py", line 163, in print_exc
+    print_exception(*sys.exc_info(), limit=limit, file=file, chain=chain)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/traceback.py", line 103, in print_exception
+    for line in TracebackException(
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/traceback.py", line 517, in __init__
+    self.stack = StackSummary.extract(
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/traceback.py", line 366, in extract
+    f.line
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/traceback.py", line 288, in line
+    self._line = linecache.getline(self.filename, self.lineno).strip()
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/linecache.py", line 30, in getline
+    lines = getlines(filename, module_globals)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/linecache.py", line 46, in getlines
+    return updatecache(filename, module_globals)
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/linecache.py", line 136, in updatecache
+    with tokenize.open(fullname) as fp:
+  File "/home/min/a/jgammell/miniconda3/envs/sca-defense/lib/python3.9/tokenize.py", line 392, in open
+    buffer = _builtin_open(filename, 'rb')
+KeyboardInterrupt

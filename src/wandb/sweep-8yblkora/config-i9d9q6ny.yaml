@@ -1,0 +1,10 @@
+wandb_version: 1
+
+disc_steps_per_gen_step:
+  value: 0.2
+gen_drift_decay:
+  value: 0
+max_pert:
+  value: 0.1
+pert_l1_decay:
+  value: 0

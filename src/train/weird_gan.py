@@ -1,6 +1,7 @@
 import os
 import json
 import random
+from numbers import Number
 import time
 from tqdm import tqdm
 from copy import copy
@@ -9,6 +10,7 @@ import numpy as np
 import torch
 from torch import nn, optim
 from torchvision.transforms import Compose
+import wandb
 
 import config
 from config import printl as print
@@ -57,11 +59,11 @@ class GANTrainer:
         assert isinstance(self.discriminator_optimizer_kwargs, dict)
         assert hasattr(optim, self.generator_optimizer_class)
         assert isinstance(self.generator_optimizer_kwargs, dict)
-        assert isinstance(self.pert_l1_decay, float)
-        assert isinstance(self.gen_drift_decay, float)
-        assert isinstance(self.max_pert, float)
+        assert isinstance(self.pert_l1_decay, Number)
+        assert isinstance(self.gen_drift_decay, Number)
+        assert isinstance(self.max_pert, Number)
         assert isinstance(self.cal_temperature, bool)
-        assert isinstance(self.disc_steps_per_gen_step, float)
+        assert isinstance(self.disc_steps_per_gen_step, Number)
         for tf_list in [self.train_sample_transforms, self.train_target_transforms, self.train_batch_transforms,
                         self.eval_sample_transforms, self.eval_target_transforms, self.eval_batch_transforms]:
             assert isinstance(tf_list, list)
@@ -219,7 +221,7 @@ class GANTrainer:
         return self.max_pert*self.generator(traces) + traces
     
     def gen_criterion(self, gen_traces, target_traces):
-        return (gen_traces - target_traces).norm(p='fro')
+        return nn.functional.mse_loss(gen_traces, target_traces)
         
     def train_step(
         self,
@@ -243,10 +245,10 @@ class GANTrainer:
         batch_size = train_traces.size(0)
         num_classes = 256
         
+        with torch.no_grad():
+            perturbed_train_traces = self.get_perturbed_traces(train_traces)
         if train_disc:
             # d_train phase: update discriminator parameters to improve loss on a training batch
-            with torch.no_grad():
-                perturbed_train_traces = self.get_perturbed_traces(train_traces)
             d_train_logits = self.discriminator(perturbed_train_traces)
             d_train_loss = nn.functional.cross_entropy(d_train_logits, train_labels)
             self.discriminator_optimizer.zero_grad(set_to_none=True)
@@ -334,6 +336,7 @@ class GANTrainer:
         disc_loss = nn.functional.cross_entropy(disc_logits, labels)
         disc_ece = self.ece_criterion(disc_logits, labels)
         perturbation_l1_loss = nn.functional.l1_loss(perturbed_traces, traces)
+        perturbation_mse_loss = nn.functional.mse_loss(perturbed_traces, traces)
         perturbation_confusion_loss = nn.functional.cross_entropy(
             self.discriminator(perturbed_traces),
             torch.ones(batch_size, num_classes, dtype=torch.float, device=self.device)/num_classes
@@ -351,7 +354,8 @@ class GANTrainer:
             'd_train_loss': disc_loss.item(),
             'd_train_acc': train.metrics.get_acc(disc_logits, labels),
             'd_cal_ece': disc_ece.item(),
-            'perturbation_loss': perturbation_l1_loss.item(),
+            'perturbation_l1_loss': perturbation_l1_loss.item(),
+            'perturbation_loss': perturbation_mse_loss.item(),
             'perturbation_confusion_loss': perturbation_confusion_loss.item()
         }
         if hasattr(self, 'pretrained_discriminator'):
@@ -368,7 +372,7 @@ class GANTrainer:
             step_fn = self.pretrain_step
         else:
             step_fn = self.train_step
-        for bidx, (batch, val_batch) in enumerate(zip(tqdm(self.train_dataloader), self.cal_dataloader)):
+        for bidx, (batch, val_batch) in enumerate(zip(self.train_dataloader, self.cal_dataloader)):
             if self.disc_steps_per_gen_step > 1:
                 disc_steps += 1
                 train_disc = True
@@ -389,7 +393,7 @@ class GANTrainer:
         return rv
     
     def eval_epoch(self, dataloader, **kwargs):
-        rv = train.common.run_epoch(dataloader, self.eval_step, use_progress_bar=True, **kwargs)
+        rv = train.common.run_epoch(dataloader, self.eval_step, use_progress_bar=False, **kwargs)
         return rv
     
     def train_model(
@@ -465,6 +469,9 @@ class GANTrainer:
             for key, val in test_erv.items():
                 print('\t{}: {}'.format(key, val))
             rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
+            print('Using WANDB: {}'.format(self.using_wandb))
+            if self.using_wandb:
+                wandb.log(rv, step=epoch_idx)
             if results_save_dir is not None:
                 with open(os.path.join(results_save_dir, 'epoch_%d.pickle'%(epoch_idx)), 'wb') as F:
                     pickle.dump(rv, F)
@@ -476,8 +483,6 @@ class GANTrainer:
                     'generator_optimizer_state': self.generator_optimizer.state_dict(),
                     'discriminator_optimizer_state': self.discriminator_optimizer.state_dict()
                 }, os.path.join(model_save_dir, 'training_checkpoint.pt'))
-            if self.using_wandb:
-                wandb.log(rv, step=epoch_idx)
             if self.selection_metric is not None:
                 metric = val_erv[self.selection_metric]
                 if not self.maximize_selection_metric:
