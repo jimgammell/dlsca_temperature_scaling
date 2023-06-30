@@ -1,8 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 112, in run_wandb_trial_
-    trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 473, in train_model
-    print(list(rv.keys()), [list(srv.keys()) for srv in rv.items()])
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/train/weird_gan.py", line 473, in <listcomp>
-    print(list(rv.keys()), [list(srv.keys()) for srv in rv.items()])
-AttributeError: 'tuple' object has no attribute 'keys'

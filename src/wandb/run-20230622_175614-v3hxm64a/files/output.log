@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 58, in run_wandb_trial_
-    if len(os.listdir(save_dir)) > 0:
-FileNotFoundError: [Errno 2] No such file or directory: '../results/htune__zaidnet_big'

@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 57, in run_wandb_trial_
-    save_dir = config.results_subdir(settings['save_dir'])
-AttributeError: module 'config' has no attribute 'results_subdir'

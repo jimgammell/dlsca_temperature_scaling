@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 57, in run_wandb_trial_
-    save_dir = os.path.join(config.RESULTS_BASE_DIR, settings['save_dir'])
-NameError: name 'settings' is not defined

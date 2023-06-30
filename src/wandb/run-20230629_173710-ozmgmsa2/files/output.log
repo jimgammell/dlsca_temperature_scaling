@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 111, in run_wandb_trial_
-    trainer = trainer_class(using_wandb=True, **settings)
-TypeError: train.weird_gan.GANTrainer() got multiple values for keyword argument 'using_wandb'

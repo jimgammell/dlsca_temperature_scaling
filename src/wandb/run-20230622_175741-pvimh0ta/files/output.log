@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 71, in run_wandb_trial_
-    json.dump(settings, F, indent=2)
-NameError: name 'settings' is not defined

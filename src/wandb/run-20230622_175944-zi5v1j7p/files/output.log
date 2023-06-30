@@ -1,4 +1,0 @@
-Traceback (most recent call last):
-  File "/local/a/jgammell/dlsca_bag_of_tricks/src/main.py", line 73, in run_wandb_trial_
-    trainer.train_model(settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir)
-NameError: name 'settings' is not defined
