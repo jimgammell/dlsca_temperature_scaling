@@ -93,7 +93,8 @@ class DCGAN__Generator(nn.Module):
         input_shape,
         base_channels=32,
         kernel_size=11,
-        num_blocks=3
+        num_blocks=3,
+        max_l1sum_out=None
     ):
         super().__init__()
         
@@ -113,17 +114,23 @@ class DCGAN__Generator(nn.Module):
             get_block(base_channels, base_channels) for _ in range(num_blocks)
         ])
         self.output_transform = nn.Sequential(
-            nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2),
-            nn.Tanh()
+            nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2)
         )
         self.output_scalar = nn.Parameter(torch.tensor(0, dtype=torch.float))
+        self.max_l1sum_out = max_l1sum_out
         
     def forward(self, x):
         #x_orig = x.clone()
         x = self.input_transform(x)
         x = self.trunk(x)
         x = self.output_transform(x)
-        x = self.output_scalar*x
+        # Rescale the outputs so that they respect the max_l1sum constraint
+        #if self.max_l1sum_out is not None:
+        #    l1sums = x.abs().sum(dim=-1, keepdims=True)
+        #    rescale_vals = torch.where(l1sums > self.max_l1sum_out, self.max_l1sum_out/l1sums, torch.ones_like(l1sums))
+        #    x = rescale_vals * x
+        
+        #x = self.output_scalar*x
         return x
     
 class DCGAN__Discriminator(nn.Module):

@@ -1,6 +1,6 @@
 {
-    "wandb_project": "htune__dcgan__tinyaes",
-    "save_dir": "htune__dcgan__tinyaes",
+    "wandb_project": "htune__dcgan__tinyaes__norm_clipping",
+    "save_dir": "htune__dcgan__tinyaes__norm_clipping",
     "train_gan": true,
     "dataset_name": "GoogleTinyAES",
     "dataset_kwargs": {
@@ -23,8 +23,8 @@
     },
     "generator_optimizer_class": "Adam",
     "generator_optimizer_kwargs": {
-        "lr": 2e-4,
-        "betas": [0.0, 0.9]
+        "lr": 1e-3,
+        "betas": [0.5, 0.99]
     },
     "train_sample_transforms": [
         "ToFloatTensor",
@@ -42,19 +42,27 @@
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "total_epochs": 10,
+    "total_epochs": 100,
     "seed": 0,
     "batch_size": 256,
     "val_split_prop": 0.2,
     "pretrained_disc_path": "dcgan_disc__google_tinyaes",
+    "max_pert": 2e0,
+    "gen_drift_decay": 0.0,
+    "disc_steps_per_gen_step": 1.0,
+    "percentile_to_clip": 0.95,
+    "max_l1sum_out": 100,
     "wandb_config": {
         "method": "grid",
         "name": "dcgan_tinyaes_htune",
         "parameters": {
-            "disc_steps_per_gen_step": {"values": [0.2, 1.0, 5.0]},
-            "max_pert": {"values": [1e-2, 1e-1, 1e0]},
-            "pert_l1_decay": {"values": [0.0, 1e-6, 1e-4, 1e-2]},
-            "gen_drift_decay": {"values": [0.0, 1e-4, 1e-2]}
+            "discriminator_optimizer_kwargs": {
+                "lr": {"values": [1e-4, 4e-4]}
+            },
+            "generator_optimizer_kwargs": {
+                "lr": {"values": [1e-4, 4e-4]}
+            },
+            "cal_temperature": {"values": [false, true]}
         }
     }
 }
