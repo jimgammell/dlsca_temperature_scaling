@@ -345,7 +345,7 @@ class GANTrainer:
         disc_ece = self.ece_criterion(disc_logits, labels)
         perturbation_l1_loss = nn.functional.l1_loss(perturbed_traces, traces)
         perturbation_mse_loss = nn.functional.mse_loss(perturbed_traces, traces)
-        perturbation_linf_loss = (perturbed_traces-traces).abs().max(dim=-1).mean()
+        perturbation_linf_loss = (perturbed_traces-traces).norm(p=np.inf, dim=-1).mean()
         perturbation_confusion_loss = nn.functional.cross_entropy(
             self.discriminator(perturbed_traces),
             torch.ones(batch_size, num_classes, dtype=torch.float, device=self.device)/num_classes

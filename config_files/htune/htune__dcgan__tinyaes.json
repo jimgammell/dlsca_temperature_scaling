@@ -57,7 +57,7 @@
         "parameters": {
             "pert_l1_decay": {"values": [0.0, 1e-6, 1e-4, 1e-2]},
             "cal_temperature": {"values": [false, true]},
-            "percentile_to_clip": {"values": [0.0]}
+            "percentile_to_clip": {"values": [0.95]}
         }
     }
 }

@@ -205,8 +205,6 @@ def main():
         torch.backends.cudnn.benchmark = True
     if args.devices is None:
         args.devices = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    if args.sweep_id is not None:
-        settings['sweep_id'] = args.sweep_id
     for config_name in args.train:
         print('Executing training run defined in {} ...'.format(os.path.join(config.get_config_base_dir(train=True), config_name)))
         settings = config.load_config(config_name, train=True)
@@ -222,6 +220,8 @@ def main():
     for config_name in args.htune:
         print('Executing hyperparameter tuning run defined in {} ...'.format(os.path.join(config.HTUNE_CONFIGS, config_name)))
         settings = config.load_config(config_name, train=False)
+        if args.sweep_id is not None:
+            settings['sweep_id'] = args.sweep_id
         if 'train_gan' in settings.keys():
             train_gan = settings['train_gan']
         else:
