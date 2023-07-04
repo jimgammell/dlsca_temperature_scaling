@@ -33,6 +33,7 @@ class GANTrainer:
         max_pert=1.0,
         max_l1sum_out=None,
         disc_steps_per_gen_step=1,
+        unperturbed_prob=0.0,
         cal_temperature=False,
         train_sample_transforms=[], train_target_transforms=[], train_batch_transforms=[],
         eval_sample_transforms=[], eval_target_transforms=[], eval_batch_transforms=[],
@@ -233,7 +234,23 @@ class GANTrainer:
         return perturbed_trace
     
     def gen_criterion(self, gen_traces, target_traces):
-        return nn.functional.mse_loss(gen_traces, target_traces)
+        return nn.functional.mse_loss(gen_traces, target_traces) + nn.functional.l1_loss(gen_traces, target_traces)
+    
+    def update_perturbation(self, initial_logits, traces):
+        logits = initial_logits.detach().clone()
+        logits.requires_grad = True
+        perturb_opt = optim.LBFGS([logits], lr=1e0, max_iter=50, history_size=50)
+        def closure():
+            perturb_opt.zero_grad()
+            perturbed_traces = self.get_traces(logits, traces)
+            perturb_loss = nn.functional.cross_entropy(
+                self.discriminator(perturbed_traces),
+                torch.ones(perturbed_traces.size(0), 256, dtype=torch.float, device=self.device)/256
+            ) + self.pert_l1_decay*nn.functional.l1_loss(perturbed_traces, traces)
+            perturb_loss.backward()
+            return perturb_loss
+        perturb_opt.step(closure)
+        return logits.detach()
         
     def train_step(
         self,
@@ -257,56 +274,38 @@ class GANTrainer:
         batch_size = train_traces.size(0)
         num_classes = 256
         
-        with torch.no_grad():
-            gen_train_logits = self.generator(train_traces)
-            perturbed_train_traces = self.get_traces(gen_train_logits, train_traces)
+        gen_train_logits = self.generator(train_traces)
+        gen_perturbed_traces = self.get_traces(gen_train_logits, train_traces)
+        perturbed_traces = self.update_perturbation(gen_train_logits, train_traces)
+        
         if train_disc:
-            # d_train phase: update discriminator parameters to improve loss on a training batch
-            d_train_logits = self.discriminator(perturbed_train_traces)
+            if np.random.rand() < self.unperturbed_prob:
+                d_train_logits = self.discriminator(train_traces)
+            else:
+                d_train_logits = self.discriminator(perturbed_traces)
             d_train_loss = nn.functional.cross_entropy(d_train_logits, train_labels)
             self.discriminator_optimizer.zero_grad(set_to_none=True)
             d_train_loss.backward()
             self.discriminator_optimizer.step()
-
-        self.discriminator.eval()
-        self.generator.train()
-        if self.cal_temperature:
-            # d_cal phase: update discriminator softmax temperature to improve loss on a validation batch
-            with torch.no_grad():
-                perturbed_val_traces = self.get_traces(self.generator(val_traces), val_traces)
-            logits = self.discriminator(perturbed_val_traces)
-            d_cal_loss = nn.functional.cross_entropy(logits, val_labels)
-            self.discriminator_temp_optimizer.zero_grad()
-            d_cal_loss.backward()
-            self.discriminator_temp_optimizer.step()
-            d_cal_ece = self.ece_criterion(logits, val_labels)
+        
+            if self.cal_temperature:
+                if np.random.rand() < self.unperturbed_prob:
+                    with torch.no_grad():
+                        perturbed_val_traces = self.get_traces(self.generator(val_traces), val_traces)
+                        logits = self.discriminator(perturbed_val_traces)
+                else:
+                    logits = self.discriminator(val_traces)
+                d_cal_loss = nn.functional.cross_entropy(logits, val_labels)
+                self.discriminator_temp_optimizer.zero_grad()
+                d_cal_loss.backward()
+                self.discriminator_temp_optimizer.step()
+                d_cal_ece = self.ece_criterion(logits, val_labels)
         
         if train_gen:
             # perturb phase: find a new trace which confuses the discriminator
             #   (while trying to keep L1 distance from original trace small)
-            gen_train_logits.requires_grad = True
-            perturb_opt = optim.LBFGS([gen_train_logits], lr=1e0, max_iter=50)
-            def closure():
-                perturb_opt.zero_grad()
-                perturbed_traces = self.get_traces(gen_train_logits, train_traces)
-                perturb_loss = nn.functional.cross_entropy(
-                    self.discriminator(perturbed_traces),
-                    torch.ones(batch_size, num_classes, dtype=torch.float, device=self.device)/num_classes
-                )
-                perturb_loss.backward()
-                return perturb_loss
-            perturb_opt.step(closure)
-            with torch.no_grad():
-                perturbed_traces = self.get_traces(gen_train_logits, train_traces)
-                disc_post_logits = self.discriminator(perturbed_traces)
-                disc_post_loss = nn.functional.cross_entropy(disc_post_logits, train_labels)
-
-            # g_train phase: update generator parameters so that it outputs the perturbed trace
-            gen_perturbed_traces = self.get_traces(self.generator(train_traces), train_traces)
-            gen_pert_loss = self.gen_criterion(gen_perturbed_traces, perturbed_traces.detach())
-            gen_param_drift_loss = self.generator.get_parameter_drift_loss()
-            gen_loss = gen_pert_loss + self.gen_drift_decay*gen_param_drift_loss
-            self.generator_optimizer.zero_grad(set_to_none=True)
+            gen_loss = self.gen_criterion(self.get_traces(gen_train_logits, train_traces), perturbed_traces)
+            self.generator_optimizer.zero_grad()
             gen_loss.backward()
             self.generator_optimizer.step()
             self.generator.update_avg_buffer()
@@ -320,17 +319,11 @@ class GANTrainer:
         if train_disc:
             rv['d_train_loss'] = d_train_loss.item()
             rv['d_train_acc'] = train.metrics.get_acc(d_train_logits, train_labels)
-        if self.cal_temperature:
-            rv['d_cal_loss'] = d_cal_loss.item()
-            rv['d_cal_ece'] = d_cal_ece.item()
+            if self.cal_temperature:
+                rv['d_cal_loss'] = d_cal_loss.item()
+                rv['d_cal_ece'] = d_cal_ece.item()
         if train_gen:
-            rv['gen_pert_loss'] = gen_pert_loss.item()
-            rv['gen_param_drift_loss'] = gen_param_drift_loss.item()
             rv['gen_loss'] = gen_loss.item()
-            rv['d_pert_loss'] = disc_post_loss.item()
-            rv['d_pert_acc'] = train.metrics.get_acc(disc_post_logits, train_labels)
-            if hasattr(self.generator, 'output_scalar'):
-                rv['gen_scalar'] = self.generator.output_scalar.item()
         return rv
     
     @torch.no_grad()
@@ -352,6 +345,7 @@ class GANTrainer:
         disc_ece = self.ece_criterion(disc_logits, labels)
         perturbation_l1_loss = nn.functional.l1_loss(perturbed_traces, traces)
         perturbation_mse_loss = nn.functional.mse_loss(perturbed_traces, traces)
+        perturbation_linf_loss = (perturbed_traces-traces).abs().max(dim=-1).mean()
         perturbation_confusion_loss = nn.functional.cross_entropy(
             self.discriminator(perturbed_traces),
             torch.ones(batch_size, num_classes, dtype=torch.float, device=self.device)/num_classes
@@ -370,7 +364,8 @@ class GANTrainer:
             'd_train_acc': train.metrics.get_acc(disc_logits, labels),
             'd_cal_ece': disc_ece.item(),
             'perturbation_l1_loss': perturbation_l1_loss.item(),
-            'perturbation_loss': perturbation_mse_loss.item(),
+            'perturbation_l2_loss': perturbation_mse_loss.item(),
+            'perturbation_linf_loss': perturbation_linf_loss.item(),
             'perturbation_confusion_loss': perturbation_confusion_loss.item()
         }
         if hasattr(self, 'pretrained_discriminator'):
