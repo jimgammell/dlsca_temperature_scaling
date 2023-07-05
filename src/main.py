@@ -129,7 +129,7 @@ def htune_run(settings, trials_per_gpu=1, devices='cpu', print_to_terminal=False
         sweep_id = wandb.sweep(sweep=wandb_config, project=settings['wandb_project'])
     config.set_num_agents(trials_per_gpu*len(devices))
     if trials_per_gpu*len(devices) == 1:
-        spawn_agent(sweep_id, devices[0], classifier_settings)
+        spawn_agent_(sweep_id, settings['wandb_project'], devices[0], classifier_settings, print_to_terminal, train_gan)
     else:
         multiprocessing.set_start_method('spawn')
         procs = []

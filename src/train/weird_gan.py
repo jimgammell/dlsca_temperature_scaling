@@ -25,8 +25,10 @@ class GANTrainer:
         dataset_name=None, dataset_kwargs={},
         discriminator_name=None, discriminator_kwargs={},
         generator_name=None, generator_kwargs={},
+        classifier_name=None, classifier_kwargs={},
         discriminator_optimizer_class=None, discriminator_optimizer_kwargs={},
         generator_optimizer_class=None, generator_optimizer_kwargs={},
+        classifier_optimizer_class=None, classifier_optimizer_kwargs={},
         pert_l1_decay=0.0,
         gen_drift_decay=0.0,
         percentile_to_clip=0,
@@ -43,6 +45,7 @@ class GANTrainer:
         batch_size=32,
         val_split_prop=0.2,
         pretrain_epochs=0,
+        posttrain_epochs=0,
         using_wandb=False,
         selection_metric=None, maximize_selection_metric=False,
         **kwargs
@@ -126,6 +129,9 @@ class GANTrainer:
         self.discriminator = models.construct_model(
             self.discriminator_name, input_shape=self.train_dataset.dataset.data_shape, **self.discriminator_kwargs
         )
+        self.classifier = models.construct_model(
+            self.classifier_name, input_shape=self.train_dataset.dataset.data_shape, **self.classifier_kwargs
+        )
         models.temperature_scaling.decorate_model(self.discriminator)
         models.parameter_averaging.decorate_model(self.generator)
         self.discriminator_temp_optimizer = optim.SGD([self.discriminator.pre_temperature], lr=1e-1, momentum=0.9)
@@ -135,12 +141,16 @@ class GANTrainer:
             setattr(self.discriminator, 'input_shape', self.train_dataset.dataset.data_shape)
         self.generator = self.generator.to(self.device)
         self.discriminator = self.discriminator.to(self.device)
+        self.classifier = self.classifier.to(self.device)
         self.generator_optimizer = getattr(optim, self.generator_optimizer_class)(
             self.generator.parameters(), **self.generator_optimizer_kwargs
         )
         self.discriminator_optimizer = getattr(optim, self.discriminator_optimizer_class)(
             [p for pname, p in self.discriminator.named_parameters() if pname != 'pre_temperature'],
             **self.discriminator_optimizer_kwargs
+        )
+        self.classifier_optimizer = getattr(optim, self.classifier_optimizer_class)(
+            self.classifier.parameters(), **self.classifier_optimizer_kwargs
         )
         if self.pretrained_disc_path is not None:
             trial_dir = os.path.join(config.RESULTS_BASE_DIR, self.pretrained_disc_path)
@@ -183,7 +193,8 @@ class GANTrainer:
         batch_size = train_traces.size(0)
         num_classes = 256
         
-        perturbed_traces = self.get_perturbed_traces(train_traces)
+        gen_logits = self.generator(train_traces)
+        perturbed_traces = self.get_traces(gen_logits, train_traces)
         gen_train_loss = nn.functional.l1_loss(perturbed_traces, train_traces)
         self.generator_optimizer.zero_grad(set_to_none=True)
         gen_train_loss.backward()
@@ -239,7 +250,7 @@ class GANTrainer:
     def update_perturbation(self, initial_logits, traces):
         logits = initial_logits.detach().clone()
         logits.requires_grad = True
-        perturb_opt = optim.LBFGS([logits], lr=1e0, max_iter=50, history_size=50)
+        perturb_opt = optim.LBFGS([logits], lr=1e-1, max_iter=50, history_size=50)
         def closure():
             perturb_opt.zero_grad()
             perturbed_traces = self.get_traces(logits, traces)
@@ -250,7 +261,50 @@ class GANTrainer:
             perturb_loss.backward()
             return perturb_loss
         perturb_opt.step(closure)
-        return logits.detach()
+        return self.get_traces(logits.detach(), traces)
+        
+    def posttrain_step(self, batch):
+        start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
+        start.record()
+        
+        traces, labels = datasets.common.unpack_batch(batch, self.device)
+        self.generator.eval()
+        self.classifier.train()
+        with torch.no_grad():
+            gen_logits = self.generator(traces)
+            gen_perturbed_traces = self.get_traces(gen_logits, traces)
+        classifier_logits = self.classifier(gen_perturbed_traces)
+        classifier_loss = nn.functional.cross_entropy(classifier_logits, labels)
+        self.classifier_optimizer.zero_grad()
+        classifier_loss.backward()
+        self.classifier_optimizer.step()
+        end.record()
+        torch.cuda.synchronize()
+        return {
+            'msec_per_batch': start.elapsed_time(end),
+            'classifier_loss': classifier_loss.item(),
+            'classifier_acc': train.metrics.get_acc(classifier_logits, labels)
+        }
+    
+    @torch.no_grad()
+    def posteval_step(self, batch):
+        start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
+        start.record()
+        
+        traces, labels = datasets.common.unpack_batch(batch, self.device)
+        self.generator.eval()
+        self.classifier.eval()
+        gen_logits = self.generator(traces)
+        gen_perturbed_traces = self.get_traces(gen_logits, traces)
+        classifier_logits = self.classifier(gen_perturbed_traces)
+        classifier_loss = nn.functional.cross_entropy(classifier_logits, labels)
+        end.record()
+        torch.cuda.synchronize()
+        return {
+            'msec_per_batch': start.elapsed_time(end),
+            'classifier_loss': classifier_loss.item(),
+            'classifier_acc': train.metrics.get_acc(classifier_logits, labels)
+        }
         
     def train_step(
         self,
@@ -262,7 +316,7 @@ class GANTrainer:
         start.record()
         
         self.discriminator.train()
-        self.generator.eval()
+        self.generator.train()
         train_traces, train_labels = datasets.common.unpack_batch(train_batch, self.device)
         if self.train_batch_transform is not None:
             train_traces, train_labels = self.train_batch_transform((train_traces, train_labels))
@@ -289,6 +343,7 @@ class GANTrainer:
             self.discriminator_optimizer.step()
         
             if self.cal_temperature:
+                self.discriminator.eval()
                 if np.random.rand() < self.unperturbed_prob:
                     with torch.no_grad():
                         perturbed_val_traces = self.get_traces(self.generator(val_traces), val_traces)
@@ -304,7 +359,8 @@ class GANTrainer:
         if train_gen:
             # perturb phase: find a new trace which confuses the discriminator
             #   (while trying to keep L1 distance from original trace small)
-            gen_loss = self.gen_criterion(self.get_traces(gen_train_logits, train_traces), perturbed_traces)
+            self.generator.train()
+            gen_loss = self.gen_criterion(gen_perturbed_traces, perturbed_traces)
             self.generator_optimizer.zero_grad()
             gen_loss.backward()
             self.generator_optimizer.step()
@@ -375,11 +431,13 @@ class GANTrainer:
             })
         return rv
     
-    def train_epoch(self, pretrain=False, **kwargs):
+    def train_epoch(self, pretrain=False, posttrain=False, **kwargs):
         disc_steps = gen_steps = 0
         rv = train.metrics.ResultsDict()
         if pretrain:
             step_fn = self.pretrain_step
+        elif posttrain:
+            step_fn = self.posttrain_step
         else:
             step_fn = self.train_step
         for bidx, (batch, val_batch) in enumerate(zip(self.train_dataloader, self.cal_dataloader)):
@@ -402,8 +460,12 @@ class GANTrainer:
         rv.reduce(np.mean)
         return rv
     
-    def eval_epoch(self, dataloader, **kwargs):
-        rv = train.common.run_epoch(dataloader, self.eval_step, use_progress_bar=False, **kwargs)
+    def eval_epoch(self, dataloader, posttrain=False, **kwargs):
+        if posttrain:
+            step_fn = self.posteval_step
+        else:
+            step_fn = self.eval_step
+        rv = train.common.run_epoch(dataloader, step_fn, use_progress_bar=False, **kwargs)
         return rv
     
     def train_model(
@@ -509,6 +571,30 @@ class GANTrainer:
                             **{'best_val_%s'%(key): val for key, val in val_erv.items()},
                             **{'best_test_%s'%(key): val for key, val in test_erv.items()}
                         })
+        
+        print('Starting posttraining.')
+        max_val_acc = -np.inf
+        for epoch_idx in range(epochs, epochs+posttrain_epochs):
+            print('\nStarting epoch {} ...'.format(epoch_idx))
+            train_erv = self.train_epoch(posttrain=True)
+            print('Training results:')
+            for key, val in train_erv.items():
+                print('\t{}: {}'.format(key, val))
+            val_erv = self.eval_epoch(self.val_dataloader, posttrain=True)
+            val_acc = val_erv['classifier_acc']
+            if val_acc > max_val_acc:
+                max_val_acc = val_acc
+            print('Validation results:')
+            for key, val in val_erv.items():
+                print('\t{}: {}'.format(key, val))
+            test_erv = self.eval_epoch(self.test_dataloader, posttrain=True)
+            print('Test results:')
+            for key, val in test_erv.items():
+                print('\t{}: {}'.format(key, val))
+            rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
+            if self.using_wandb:
+                wandb.log(rv, step=epoch_idx)
+                wandb.summary.update({'best_classifier_acc': max_val_acc})
 
 def hinge_loss(logits, y):
     return nn.functional.relu(1-y*logits).mean()
