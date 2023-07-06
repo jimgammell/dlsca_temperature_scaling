@@ -1,0 +1,77 @@
+{
+    "wandb_project": "htune_dcdisc_ascadv1var_ds50",
+    "save_dir": "dcgan_disc__google_tinyaes",
+    "dataset_name": "ASCADv1",
+    "dataset_kwargs": {
+        "desync": 50,
+        "variable": true
+    },
+    "model_name": "DCGAN__Discriminator",
+    "model_kwargs": {
+        "num_blocks": 5
+    },
+    "optimizer_class": "SGD",
+    "optimizer_kwargs": {
+        "lr": 1e-2,
+        "momentum": 0.9,
+        "nesterov": true
+    },
+    "criterion_class": "CrossEntropyLoss",
+    "lr_scheduler_class": null,
+    "lr_scheduler_kwargs": {
+        "max_lr": 5e-5,
+        "cycle_momentum": false,
+        "pct_start": 0.1,
+        "div_factor": 1e4,
+        "final_div_factor": 1e0
+    },
+    "rescale_temperature": false,
+    "precise_bn_stats": false,
+    "use_sam": false,
+    "sam_kwargs": {
+        "rho": 0.05
+    },
+    "train_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "train_target_transforms": [
+        "ToLongTensor"
+    ],
+    "train_batch_transforms": [
+    ],
+    "eval_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "total_epochs": 10,
+    "batch_size": 256,
+    "val_split_prop": 0.2,
+    "training_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "eval_metrics": {
+        "accuracy": "get_acc",
+        "rank": "get_rank"
+    },
+    "selection_metric": "accuracy",
+    "maximize_selection_metric": true,
+    "seed": 0,
+    "wandb_config": {
+        "method": "grid",
+        "name": "dcgan_disc_htune",
+        "parameters": {
+            "optimizer_kwargs": {
+                "lr": {"values": [
+                    1e-3, 2e-3, 3e-3, 4e-3, 5e-3, 6e-3, 7e-3, 8e-3, 9e-3,
+                    1e-2, 2e-2, 3e-2, 4e-2, 5e-2, 6e-2, 7e-2, 8e-2, 9e-2,
+                    1e-1, 2e-1, 3e-1, 4e-1, 5e-1, 6e-1, 7e-1, 8e-1, 9e-1,
+                    1e0
+                    ]}
+            },
+            "use_sam": {"values": [false, true]}
+        }
+    }
+}
