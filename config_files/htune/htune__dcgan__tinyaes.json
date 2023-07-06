@@ -51,8 +51,8 @@
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "total_epochs": 25,
-    "pretrain_epochs": 5,
+    "total_epochs": 0,
+    "pretrain_epochs": 0,
     "posttrain_epochs": 5,
     "seed": 0,
     "batch_size": 256,

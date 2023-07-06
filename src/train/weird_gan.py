@@ -263,7 +263,7 @@ class GANTrainer:
         perturb_opt.step(closure)
         return self.get_traces(logits.detach(), traces)
         
-    def posttrain_step(self, batch):
+    def posttrain_step(self, batch, **kwargs):
         start, end = (torch.cuda.Event(enable_timing=True) for _ in range(2))
         start.record()
         
@@ -574,7 +574,7 @@ class GANTrainer:
         
         print('Starting posttraining.')
         max_val_acc = -np.inf
-        for epoch_idx in range(epochs, epochs+posttrain_epochs):
+        for epoch_idx in range(epochs, epochs+self.posttrain_epochs):
             print('\nStarting epoch {} ...'.format(epoch_idx))
             train_erv = self.train_epoch(posttrain=True)
             print('Training results:')
