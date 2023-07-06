@@ -51,8 +51,8 @@
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "total_epochs": 0,
-    "pretrain_epochs": 0,
+    "total_epochs": 100,
+    "pretrain_epochs": 5,
     "posttrain_epochs": 5,
     "seed": 0,
     "batch_size": 256,
@@ -62,14 +62,14 @@
     "gen_drift_decay": 0.0,
     "disc_steps_per_gen_step": 1.0,
     "percentile_to_clip": 0.0,
+    "cal_temperature": false,
     "max_l1sum_out": null,
     "wandb_config": {
         "method": "grid",
         "name": "dcgan_tinyaes_htune",
         "parameters": {
-            "pert_l1_decay": {"values": [0.0, 1e-6, 1e-4, 1e-2]},
-            "cal_temperature": {"values": [false, true]},
-            "percentile_to_clip": {"values": [0.00, 0.95]}
+            "pert_l1_decay": {"values": [1e-2, 1e-1]},
+            "disc_steps_per_gen_step": {"values": [1.0, 5.0]}
         }
     }
 }
