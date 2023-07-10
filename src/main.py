@@ -30,11 +30,32 @@ def get_save_dir(name):
     os.makedirs(model_save_dir, exist_ok=True)
     return save_dir, results_save_dir, model_save_dir
     
-def training_run(settings, device='cpu', generate_figs=False, time_objects=False, print_to_terminal=False, train_gan=False):
+def training_run(
+    settings,
+    device='cpu',
+    generate_figs=False,
+    time_objects=False,
+    print_to_terminal=False,
+    train_gan=False,
+    resume_dir=None,
+    posttrain_only=False
+):
+    del time_objects # FIXME
     if hasattr(device, '__getitem__'):
         device = device[0]
     settings['device'] = device
-    save_dir, results_save_dir, model_save_dir = get_save_dir(settings['save_dir'])
+    if resume_dir is not None:
+        save_dir = resume_dir
+        results_save_dir = os.path.join(save_dir, 'results')
+        model_save_dir = os.path.join(save_dir, 'models')
+        assert os.path.exists(save_dir)
+        assert os.path.exists(model_save_dir)
+        assert os.path.exists(results_save_dir)
+        starting_checkpoint = os.path.join(model_save_dir, 'training_checkpoint.pt')
+        assert os.path.exists(starting_checkpoint)
+    else:
+        save_dir, results_save_dir, model_save_dir = get_save_dir(settings['save_dir'])
+        starting_checkpoint = None
     if not print_to_terminal:
         config.specify_log_file(os.path.join(save_dir, 'log.txt'))
     with open(os.path.join(save_dir, 'settings.json'), 'w') as F:
@@ -45,7 +66,10 @@ def training_run(settings, device='cpu', generate_figs=False, time_objects=False
         trainer_class = ClassifierTrainer
     trainer = trainer_class(using_wandb=False, **settings)
     trainer.train_model(
-        settings['total_epochs'], results_save_dir=results_save_dir, model_save_dir=model_save_dir, time_objects=time_objects
+        settings['total_epochs'], results_save_dir=results_save_dir,
+        model_save_dir=model_save_dir,
+        starting_checkpoint=starting_checkpoint,
+        posttrain_only=posttrain_only
     )
     if generate_figs:
         generate_training_figs(save_dir)
@@ -153,6 +177,9 @@ def main():
         '--download-resources', default=False, action='store_true', help='Download all available datasets and pretrained models.'
     )
     parser.add_argument(
+        '--resume', nargs='+', default=[], help='Base directory containing trials which should be resumed.'
+    )
+    parser.add_argument(
         '--train', choices=config.get_available_configs(train=True), nargs='+', default=[],
         help='Training runs to execute, as defined in the respective config files.'
     )
@@ -174,7 +201,7 @@ def main():
         '--sweep-id', default=None, type=str, help='WandB sweep ID to use if continuing an existing sweep. Useful for resuming crashed sweeps or using multiple machines to run a sweep.'
     )
     parser.add_argument(
-        '--devices', default=None, nargs='+', choices=['cpu', *['cuda:%d'%(dev_idx) for dev_idx in range(torch.cuda.device_count())]],
+        '--devices', default=None, nargs='+', choices=['cpu', 'cuda', *['cuda:%d'%(dev_idx) for dev_idx in range(torch.cuda.device_count())]],
         help='Devices to use for this trial.'
     )
     parser.add_argument(
@@ -185,6 +212,10 @@ def main():
     )
     parser.add_argument(
         '--generate-figs', default=False, action='store_true', help='Save figures to the trial/figures directory after each trial is completed.'
+    )
+    parser.add_argument(
+        '--posttrain-only', default=False, action='store_true',
+        help='In resumed trials, carry out only the posttraining phase, even if the training phase did not complete in the original trial.'
     )
     parser.add_argument(
         '--generate-figs-post', default=[], nargs='+', help='Generate figures for older trials listed here.'
@@ -205,6 +236,25 @@ def main():
         torch.backends.cudnn.benchmark = True
     if args.devices is None:
         args.devices = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    for dir_name in args.resume:
+        if dir_name.split('_')[0] == 'trial':
+            trial_dirs = [dir_name]
+        else:
+            trial_dirs = os.listdir(os.path.join(config.RESULTS_BASE_DIR, dir_name))
+        for trial_dir in trial_dirs:
+            if not trial_dir.split('_')[0] == 'trial':
+                continue
+            trial_path = os.path.join(config.RESULTS_BASE_DIR, dir_name, trial_dir)
+            print('Resuming trial in {} ...'.format(trial_path))
+            with open(os.path.join(trial_path, 'settings.json'), 'r') as F:
+                settings = json.load(F)
+            if 'train_gan' in settings.keys():
+                train_gan = settings['train_gan']
+            else:
+                train_gan = False
+            print('Settings:')
+            print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
+            training_run(settings, device=args.devices, generate_figs=args.generate_figs, time_objects=args.time_objects, print_to_terminal=args.print_to_terminal, train_gan=train_gan, resume_dir=trial_path, posttrain_only=args.posttrain_only)
     for config_name in args.train:
         print('Executing training run defined in {} ...'.format(os.path.join(config.get_config_base_dir(train=True), config_name)))
         settings = config.load_config(config_name, train=True)

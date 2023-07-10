@@ -154,22 +154,27 @@ class GANTrainer:
         )
         if self.pretrained_disc_path is not None:
             trial_dir = os.path.join(config.RESULTS_BASE_DIR, self.pretrained_disc_path)
+            if not os.path.exists(trial_dir):
+                print('Warning: pretrained model not found at {}'.format(trial_dir))
             if os.path.split(trial_dir)[-1].split('_')[0] != 'trial':
                 assert os.path.isdir(trial_dir)
                 available_trials = [int(f.split('_')[-1]) for f in os.listdir(trial_dir) if f.split('_')[0] == 'trial']
                 trial_idx = max(available_trials)
                 trial_dir = os.path.join(trial_dir, 'trial_%d'%(trial_idx))
             model_path = os.path.join(trial_dir, 'models', 'best_model.pt')
-            assert os.path.exists(model_path)
-            config_path = os.path.join(trial_dir, 'settings.json')
-            assert os.path.exists(config_path)
-            with open(config_path, 'r') as F:
-                settings = json.load(F)
-            self.pretrained_discriminator = models.construct_model(
-                settings['model_name'], input_shape=self.train_dataset.dataset.data_shape, **settings['model_kwargs']
-            ).to(self.device)
-            state_dict = torch.load(model_path, map_location=self.device)
-            self.pretrained_discriminator.load_state_dict(state_dict)
+            if not os.path.exists(model_path):
+                print('Warning: pretrained model not found at {}'.format(model_path))
+            else:
+                assert os.path.exists(model_path)
+                config_path = os.path.join(trial_dir, 'settings.json')
+                assert os.path.exists(config_path)
+                with open(config_path, 'r') as F:
+                    settings = json.load(F)
+                self.pretrained_discriminator = models.construct_model(
+                    settings['model_name'], input_shape=self.train_dataset.dataset.data_shape, **settings['model_kwargs']
+                ).to(self.device)
+                state_dict = torch.load(model_path, map_location=self.device)
+                self.pretrained_discriminator.load_state_dict(state_dict)
         self.ece_criterion = models.temperature_scaling.ECELoss()
             
     def pretrain_step(
@@ -469,7 +474,8 @@ class GANTrainer:
         epochs,
         starting_checkpoint=None,
         results_save_dir=None,
-        model_save_dir=None
+        model_save_dir=None,
+        posttrain_only=False
     ):
         print('Initializing trial ...')
         self.reset(epochs)
@@ -493,80 +499,82 @@ class GANTrainer:
         if starting_checkpoint is not None:
             print('Loading model from checkpoint at {} ...'.format(starting_checkpoint))
             starting_checkpoint = torch.load(starting_checkpoint, map_location=self.device)
-            self.generator.load_state_dict(checkpoint['generator_state'])
-            self.discriminator.load_state_dict(checkpoint['discriminator_state'])
-            self.generator_optimizer.load_state_dict(checkpoint['generator_optimizer_state'])
-            self.discriminator_optimizer.load_state_dict(checkpoint['discriminator_optimizer_state'])
-            starting_epoch = checkpoint['epoch']
+            self.generator.load_state_dict(starting_checkpoint['generator_state'])
+            self.discriminator.load_state_dict(starting_checkpoint['discriminator_state'])
+            self.generator_optimizer.load_state_dict(starting_checkpoint['generator_optimizer_state'])
+            self.discriminator_optimizer.load_state_dict(starting_checkpoint['discriminator_optimizer_state'])
+            starting_epoch = starting_checkpoint['epoch']
         else:
             starting_epoch = 0
         
-        print('Starting pretraining.')
-        for epoch_idx in range(-self.pretrain_epochs, 0):
-            print('\nStarting epoch {} ...'.format(epoch_idx))
-            train_erv = self.train_epoch(pretrain=True)
-            print('Training results:')
-            for key, val in train_erv.items():
-                print('\t{}: {}'.format(key, val))
-            val_erv = self.eval_epoch(self.val_dataloader)
-            print('Validation results:')
-            for key, val in val_erv.items():
-                print('\t{}: {}'.format(key, val))
-            test_erv = self.eval_epoch(self.test_dataloader)
-            print('Test results:')
-            for key, val in test_erv.items():
-                print('\t{}: {}'.format(key, val))
-            rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
-            if self.using_wandb:
-                wandb.log(rv, step=epoch_idx)
+        if not(posttrain_only) and (starting_epoch == 0):
+            print('Starting pretraining.')
+            for epoch_idx in range(-self.pretrain_epochs, 0):
+                print('\nStarting epoch {} ...'.format(epoch_idx))
+                train_erv = self.train_epoch(pretrain=True)
+                print('Training results:')
+                for key, val in train_erv.items():
+                    print('\t{}: {}'.format(key, val))
+                val_erv = self.eval_epoch(self.val_dataloader)
+                print('Validation results:')
+                for key, val in val_erv.items():
+                    print('\t{}: {}'.format(key, val))
+                test_erv = self.eval_epoch(self.test_dataloader)
+                print('Test results:')
+                for key, val in test_erv.items():
+                    print('\t{}: {}'.format(key, val))
+                rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
+                if self.using_wandb:
+                    wandb.log(rv, step=epoch_idx)
         
-        print('Starting training.')
-        best_metric = -np.inf
-        for epoch_idx in range(starting_epoch, epochs):
-            print('\nStarting epoch {} ...'.format(epoch_idx))
-            train_erv = self.train_epoch()
-            print('Training results:')
-            for key, val in train_erv.items():
-                print('\t{}: {}'.format(key, val))
-            val_erv = self.eval_epoch(self.val_dataloader)
-            print('Validation results:')
-            for key, val in val_erv.items():
-                print('\t{}: {}'.format(key, val))
-            test_erv = self.eval_epoch(self.test_dataloader)
-            print('Test results:')
-            for key, val in test_erv.items():
-                print('\t{}: {}'.format(key, val))
-            rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
-            print('Using WANDB: {}'.format(self.using_wandb))
-            if self.using_wandb:
-                wandb.log(rv, step=epoch_idx)
-            if results_save_dir is not None:
-                with open(os.path.join(results_save_dir, 'epoch_%d.pickle'%(epoch_idx)), 'wb') as F:
-                    pickle.dump(rv, F)
-            if model_save_dir is not None:
-                torch.save({
-                    'epoch': epoch_idx,
-                    'generator_state': self.generator.state_dict(),
-                    'discriminator_state': self.discriminator.state_dict(),
-                    'generator_optimizer_state': self.generator_optimizer.state_dict(),
-                    'discriminator_optimizer_state': self.discriminator_optimizer.state_dict()
-                }, os.path.join(model_save_dir, 'training_checkpoint.pt'))
-            if self.selection_metric is not None:
-                metric = val_erv[self.selection_metric]
-                if not self.maximize_selection_metric:
-                    metric *= -1
-                if metric > best_metric:
-                    print('New best model found.')
-                    best_metric = metric
-                    if model_save_dir is not None:
-                        torch.save(self.generator.state_dict(), os.path.join(model_save_dir, 'best_generator.pt'))
-                    if self.using_wandb:
-                        wandb.summary.update({
-                            'best_epoch': epoch_idx,
-                            **{'best_train_%s'%(key): val for key, val in train_erv.items()},
-                            **{'best_val_%s'%(key): val for key, val in val_erv.items()},
-                            **{'best_test_%s'%(key): val for key, val in test_erv.items()}
-                        })
+        if not(posttrain_only):
+            print('Starting training.')
+            best_metric = -np.inf
+            for epoch_idx in range(starting_epoch+1, epochs):
+                print('\nStarting epoch {} ...'.format(epoch_idx))
+                train_erv = self.train_epoch()
+                print('Training results:')
+                for key, val in train_erv.items():
+                    print('\t{}: {}'.format(key, val))
+                val_erv = self.eval_epoch(self.val_dataloader)
+                print('Validation results:')
+                for key, val in val_erv.items():
+                    print('\t{}: {}'.format(key, val))
+                test_erv = self.eval_epoch(self.test_dataloader)
+                print('Test results:')
+                for key, val in test_erv.items():
+                    print('\t{}: {}'.format(key, val))
+                rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
+                print('Using WANDB: {}'.format(self.using_wandb))
+                if self.using_wandb:
+                    wandb.log(rv, step=epoch_idx)
+                if results_save_dir is not None:
+                    with open(os.path.join(results_save_dir, 'epoch_%d.pickle'%(epoch_idx)), 'wb') as F:
+                        pickle.dump(rv, F)
+                if model_save_dir is not None:
+                    torch.save({
+                        'epoch': epoch_idx,
+                        'generator_state': self.generator.state_dict(),
+                        'discriminator_state': self.discriminator.state_dict(),
+                        'generator_optimizer_state': self.generator_optimizer.state_dict(),
+                        'discriminator_optimizer_state': self.discriminator_optimizer.state_dict()
+                    }, os.path.join(model_save_dir, 'training_checkpoint.pt'))
+                if self.selection_metric is not None:
+                    metric = val_erv[self.selection_metric]
+                    if not self.maximize_selection_metric:
+                        metric *= -1
+                    if metric > best_metric:
+                        print('New best model found.')
+                        best_metric = metric
+                        if model_save_dir is not None:
+                            torch.save(self.generator.state_dict(), os.path.join(model_save_dir, 'best_generator.pt'))
+                        if self.using_wandb:
+                            wandb.summary.update({
+                                'best_epoch': epoch_idx,
+                                **{'best_train_%s'%(key): val for key, val in train_erv.items()},
+                                **{'best_val_%s'%(key): val for key, val in val_erv.items()},
+                                **{'best_test_%s'%(key): val for key, val in test_erv.items()}
+                            })
         
         print('Starting posttraining.')
         max_val_acc = -np.inf
@@ -590,6 +598,9 @@ class GANTrainer:
             for key, val in test_erv.items():
                 print('\t{}: {}'.format(key, val))
             rv = {'train': train_erv.data(), 'val': val_erv.data(), 'test': test_erv.data()}
+            if results_save_dir is not None:
+                with open(os.path.join(results_save_dir, 'epoch_%d.pickle'%(epoch_idx)), 'wb') as F:
+                    pickle.dump(rv, F)
             if self.using_wandb:
                 wandb.log(rv, step=epoch_idx)
                 wandb.summary.update({'best_classifier_acc': max_val_acc})
