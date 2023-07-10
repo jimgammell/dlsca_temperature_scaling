@@ -1,0 +1,68 @@
+{
+    "wandb_project": "noise_adder_gan__tinyaes",
+    "save_dir": "noise_adder_gan__tinyaes",
+    "train_gan": true,
+    "dataset_name": "GoogleTinyAES",
+    "dataset_kwargs": {
+        "target_byte": 7,
+        "interval_to_use": [0, 20000],
+        "target_attack_point": "sub_bytes_out"
+    },
+    "discriminator_name": "DCGAN__Discriminator",
+    "discriminator_kwargs": {
+        "use_sn": true,
+        "num_blocks": 6
+    },
+    "generator_name": "DCGAN__Generator",
+    "generator_kwargs": {},
+    "classifier_name": "DCGAN__Discriminator",
+    "classifier_kwargs": {
+        "use_sn": false,
+        "num_blocks": 6
+    },
+    "discriminator_optimizer_class": "Adam",
+    "discriminator_optimizer_kwargs": {
+        "lr": 4e-4,
+        "betas": [0.0, 0.9]
+    },
+    "generator_optimizer_class": "Adam",
+    "generator_optimizer_kwargs": {
+        "lr": 1e-4,
+        "betas": [0.0, 0.9]
+    },
+    "classifier_optimizer_class": "Adam",
+    "classifier_optimizer_kwargs": {
+        "lr": 5e-5
+    },
+    "train_sample_transforms": [
+        "ToFloatTensor",
+        ["Downsample", {"downsample_ratio": 4}],
+        ["Standardize", {"mean": -0.2751, "stdev": 0.1296}]
+    ],
+    "train_target_transforms": [
+        "ToLongTensor"
+    ],
+    "eval_sample_transforms": [
+        "ToFloatTensor",
+        ["Downsample", {"downsample_ratio": 4}],
+        ["Standardize", {"mean": -0.2751, "stdev": 0.1296}]
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "total_epochs": 100,
+    "pretrain_epochs": 5,
+    "posttrain_epochs": 25,
+    "seed": 0,
+    "batch_size": 256,
+    "val_split_prop": 0.2,
+    "disc_steps_per_gen_step": 5.0,
+    "wandb_config": {
+        "method": "grid",
+        "name": "noise_adder_gan",
+        "parameters": {
+            "pert_l1_decay": {"values": [0.0, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]},
+            "cal_temperature": {"values": [false, true]}
+        }
+    }
+}
