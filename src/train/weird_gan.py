@@ -29,7 +29,9 @@ class GANTrainer:
         discriminator_optimizer_class=None, discriminator_optimizer_kwargs={},
         generator_optimizer_class=None, generator_optimizer_kwargs={},
         classifier_optimizer_class=None, classifier_optimizer_kwargs={},
-        pert_l1_decay=0.0,
+        pert_decay=0.0,
+        pert_metric='l1',
+        adv_loss='negative',
         gen_drift_decay=0.0,
         percentile_to_clip=0,
         max_pert=1.0,
@@ -65,7 +67,9 @@ class GANTrainer:
         assert isinstance(self.discriminator_optimizer_kwargs, dict)
         assert hasattr(optim, self.generator_optimizer_class)
         assert isinstance(self.generator_optimizer_kwargs, dict)
-        assert isinstance(self.pert_l1_decay, Number)
+        assert isinstance(self.pert_decay, Number)
+        assert isinstance(self.pert_metric, str) and self.pert_metric in ['l1', 'bce']
+        assert isinstance(self.adv_loss, str) and self.adv_loss in ['negative', 'confusion']
         assert isinstance(self.gen_drift_decay, Number)
         assert isinstance(self.max_pert, Number)
         assert isinstance(self.percentile_to_clip, Number)
@@ -177,6 +181,22 @@ class GANTrainer:
                 self.pretrained_discriminator.load_state_dict(state_dict)
         self.ece_criterion = models.temperature_scaling.ECELoss()
             
+    def pert_penalty_fn(self, mask):
+        if self.pert_metric == 'l1':
+            return nn.functional.l1_loss(mask, torch.zeros_like(mask))
+        elif self.pert_metric == 'bce':
+            return nn.functional.binary_cross_entropy(mask, torch.zeros_like(mask))
+        else:
+            assert False
+    
+    def adv_loss_fn(self, disc_logits, labels):
+        if self.adv_loss == 'negative':
+            return -nn.functional.cross_entropy(disc_logits, labels)
+        elif self.adv_loss == 'confusion':
+            return nn.functional.cross_entropy(disc_logits, torch.ones_like(disc_logits)/256)
+        else:
+            assert False
+            
     def pretrain_step(
         self,
         train_batch, val_batch=None,
@@ -199,7 +219,7 @@ class GANTrainer:
         
         gen_logits = self.generator(train_traces)
         perturbed_traces, mask = self.get_traces(gen_logits, train_traces, return_mask=True)
-        gen_train_loss = nn.functional.binary_cross_entropy(mask, torch.zeros_like(mask))
+        gen_train_loss = self.pert_penalty_fn(mask)
         self.generator_optimizer.zero_grad(set_to_none=True)
         gen_train_loss.backward()
         self.generator_optimizer.step()
@@ -262,7 +282,7 @@ class GANTrainer:
             perturb_loss = nn.functional.cross_entropy(
                 self.discriminator(perturbed_traces),
                 torch.ones(perturbed_traces.size(0), 256, dtype=torch.float, device=self.device)/256
-            ) + self.pert_l1_decay*nn.functional.l1_loss(perturbed_traces, traces)
+            ) + self.pert_decay*nn.functional.l1_loss(perturbed_traces, traces)
             perturb_loss.backward()
             return perturb_loss
         perturb_opt.step(closure)
@@ -347,7 +367,7 @@ class GANTrainer:
                 self.discriminator.eval()
                 with torch.no_grad():
                     perturbed_val_traces = self.get_traces(self.generator(val_traces), val_traces)
-                    logits = self.discriminator(perturbed_val_traces)
+                logits = self.discriminator(perturbed_val_traces)
                 d_cal_loss = nn.functional.cross_entropy(logits, val_labels)
                 self.discriminator_temp_optimizer.zero_grad()
                 d_cal_loss.backward()
@@ -360,9 +380,7 @@ class GANTrainer:
             self.generator.train()
             gen_logits = self.generator(train_traces)
             gen_perturbed_traces, mask = self.get_traces(gen_logits, train_traces, return_mask=True)
-            gen_loss = -nn.functional.cross_entropy(
-                self.discriminator(gen_perturbed_traces), train_labels
-            ) + self.pert_l1_decay*nn.functional.binary_cross_entropy(mask, torch.zeros_like(mask))
+            gen_loss = self.adv_loss_fn(self.discriminator(gen_perturbed_traces), train_labels) + self.pert_decay*self.pert_penalty_fn(mask)
             self.generator_optimizer.zero_grad()
             gen_loss.backward()
             self.generator_optimizer.step()
@@ -530,7 +548,7 @@ class GANTrainer:
         if not(posttrain_only):
             print('Starting training.')
             best_metric = -np.inf
-            for epoch_idx in range(starting_epoch+1, epochs):
+            for epoch_idx in range(starting_epoch, epochs):
                 print('\nStarting epoch {} ...'.format(epoch_idx))
                 train_erv = self.train_epoch()
                 print('Training results:')
@@ -553,7 +571,7 @@ class GANTrainer:
                         pickle.dump(rv, F)
                 if model_save_dir is not None:
                     torch.save({
-                        'epoch': epoch_idx,
+                        'epoch': epoch_idx+1,
                         'generator_state': self.generator.state_dict(),
                         'discriminator_state': self.discriminator.state_dict(),
                         'generator_optimizer_state': self.generator_optimizer.state_dict(),
@@ -575,6 +593,12 @@ class GANTrainer:
                                 **{'best_val_%s'%(key): val for key, val in val_erv.items()},
                                 **{'best_test_%s'%(key): val for key, val in test_erv.items()}
                             })
+        if (self.selection_metric is None) and self.using_wandb:
+            wandb.summary.update({
+                **{'final_train_%s'%(key): val for key, val in train_erv.items()},
+                **{'final_val_%s'%(key): val for key, val in val_erv.items()},
+                **{'final_test_%s'%(key): val for key, val in test_erv.items()}
+            })
         
         print('Starting posttraining.')
         max_val_acc = -np.inf

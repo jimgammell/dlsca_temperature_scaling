@@ -1,6 +1,6 @@
 {
-    "wandb_project": "noise_adder_gan__tinyaes",
-    "save_dir": "noise_adder_gan__tinyaes",
+    "wandb_project": "noise_adder_gan__tinyaes__revised",
+    "save_dir": "noise_adder_gan__tinyaes__revised",
     "train_gan": true,
     "dataset_name": "GoogleTinyAES",
     "dataset_kwargs": {
@@ -58,11 +58,13 @@
     "val_split_prop": 0.2,
     "disc_steps_per_gen_step": 5.0,
     "wandb_config": {
-        "method": "grid",
+        "method": "random",
         "name": "noise_adder_gan",
         "parameters": {
-            "pert_l1_decay": {"values": [0.0, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]},
-            "cal_temperature": {"values": [false, true]}
+            "pert_decay": {"values": [0.0, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]},
+            "cal_temperature": {"values": [false, true]},
+            "pert_metric": {"values": ["l1", "bce"]},
+            "adv_loss": {"values": ["negative", "confusion"]}
         }
     }
 }
