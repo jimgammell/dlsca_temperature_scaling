@@ -256,7 +256,6 @@ class GANTrainer:
         return rv
             
     def get_traces(self, perturbation, orig_trace, return_mask=False, posteval=False):
-        perturbation = nn.functional.sigmoid(perturbation)
         if posteval:
             perturbation = torch.where(perturbation > 0.0, torch.ones_like(perturbation), torch.zeros_like(perturbation))
         else:
