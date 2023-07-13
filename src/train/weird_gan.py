@@ -261,7 +261,7 @@ class GANTrainer:
             perturbation = torch.where(perturbation > 0.0, torch.ones_like(perturbation), torch.zeros_like(perturbation))
         else:
             perturbation = nn.functional.sigmoid(perturbation)
-        noise = torch.randn_like(original_trace)
+        noise = torch.randn_like(orig_trace)
         perturbed_trace = perturbation*noise + (1-perturbation)*orig_trace
         if return_mask:
             return perturbed_trace, perturbation

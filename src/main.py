@@ -192,6 +192,9 @@ def main():
         help='Evaluate a trained model for its ability to recover a key given multiple traces.'
     )
     parser.add_argument(
+        '--seed', default=None, type=int, help='Override the seed specified in the config file with this value.'
+    )
+    parser.add_argument(
         '--trials-per-gpu', default=1, type=int, help='Maximum number of trials that should be run simultaneously per GPU.'
     )
     parser.add_argument(
@@ -264,6 +267,8 @@ def main():
             train_gan = False
         if args.save_dir is not None:
             settings['save_dir'] = args.save_dir
+        if args.seed is not None:
+            settings['seed'] = args.seed
         print('Settings:')
         print('\n'.join(['\t{}: {}'.format(key, val) for key, val in settings.items()]))
         training_run(settings, device=args.devices, generate_figs=args.generate_figs, time_objects=args.time_objects, print_to_terminal=args.print_to_terminal, train_gan=train_gan)
@@ -272,6 +277,8 @@ def main():
         settings = config.load_config(config_name, train=False)
         if args.sweep_id is not None:
             settings['sweep_id'] = args.sweep_id
+        if args.seed is not None:
+            settings['seed'] = args.seed
         if 'train_gan' in settings.keys():
             train_gan = settings['train_gan']
         else:
