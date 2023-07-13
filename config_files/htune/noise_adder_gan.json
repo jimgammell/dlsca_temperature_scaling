@@ -57,14 +57,14 @@
     "batch_size": 256,
     "val_split_prop": 0.2,
     "disc_steps_per_gen_step": 5.0,
+    "pert_metric": "l1",
+    "cal_temperature": "false",
+    "adv_loss": "confusion",
     "wandb_config": {
         "method": "random",
         "name": "noise_adder_gan",
         "parameters": {
-            "pert_decay": {"values": [0.0, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]},
-            "cal_temperature": {"values": [false, true]},
-            "pert_metric": {"values": ["l1", "bce"]},
-            "adv_loss": {"values": ["negative", "confusion"]}
+            "pert_decay": {"distrubution": "log_uniform_values", "min": 0.1, "max": 100.0}
         }
     }
 }

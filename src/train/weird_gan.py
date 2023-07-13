@@ -258,11 +258,10 @@ class GANTrainer:
     def get_traces(self, perturbation, orig_trace, return_mask=False, posteval=False):
         perturbation = nn.functional.sigmoid(perturbation)
         if posteval:
-            noise = torch.randn(
-                *orig_trace.size(), dtype=orig_trace.dtype, device=orig_trace.device, generator=self.posteval_generator
-            )
+            perturbation = torch.where(perturbation > 0.0, torch.ones_like(perturbation), torch.zeros_like(perturbation))
         else:
-            noise = torch.randn_like(orig_trace)
+            perturbation = nn.functional.sigmoid(perturbation)
+        noise = torch.randn_like(original_trace)
         perturbed_trace = perturbation*noise + (1-perturbation)*orig_trace
         if return_mask:
             return perturbed_trace, perturbation
@@ -401,6 +400,7 @@ class GANTrainer:
         if train_gen:
             rv['gen_loss'] = gen_loss.item()
             rv['gen_mask_l1_size'] = nn.functional.l1_loss(mask, torch.zeros_like(mask)).item()
+            rv['gen_mask_prop'] = (torch.count_nonzero(mask > 0.5) / mask.numel()).item()
         return rv
     
     @torch.no_grad()
@@ -441,7 +441,8 @@ class GANTrainer:
             'd_train_acc': train.metrics.get_acc(disc_logits, labels),
             'd_cal_ece': disc_ece.item(),
             'perturbation_confusion_loss': perturbation_confusion_loss.item(),
-            'gen_mask_l1_size': nn.functional.l1_loss(mask, torch.zeros_like(mask)).item()
+            'gen_mask_l1_size': nn.functional.l1_loss(mask, torch.zeros_like(mask)).item(),
+            'gen_mask_prop': (torch.count_nonzero(mask > 0.5) / mask.numel()).item()
         }
         if hasattr(self, 'pretrained_discriminator'):
             rv.update({
