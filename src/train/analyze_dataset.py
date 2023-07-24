@@ -123,7 +123,8 @@ class DatasetAnalyzer:
                 if key1 == key2:
                     continue
                 sum_diffs += np.abs(per_key_means[key1] - per_key_means[key2])
-                pbar.update(1)
+                if progress_bar:
+                    pbar.update(1)
         return sum_diffs
     
     def compute_snr(self, dataset, per_key_means=None, progress_bar=False):
