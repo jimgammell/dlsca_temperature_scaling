@@ -185,10 +185,10 @@ class GANTrainer:
             train_dataset=self.train_dataset,
             val_dataset=self.val_dataset,
             test_dataset=self.test_dataset,
+            generator=self.generator,
             seed=self.seed,
             device=self.device
         )
-        self.dataset_analyzer.generator = self.generator
             
     def pert_penalty_fn(self, mask):
         if self.pert_metric == 'l1':
