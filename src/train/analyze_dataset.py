@@ -75,7 +75,7 @@ class DatasetAnalyzer:
 
     def obfuscate_sample(self, sample):
         self.generator.eval()
-        sample = sample.to(device)
+        sample = sample.to(self.device)
         sample = sample.unsqueeze(0)
         with torch.no_grad():
             mask = self.generator(sample)
