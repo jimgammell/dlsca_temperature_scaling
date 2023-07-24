@@ -138,7 +138,7 @@ class GANTrainer:
             self.classifier_name, input_shape=self.train_dataset.dataset.data_shape, **self.classifier_kwargs
         )
         models.temperature_scaling.decorate_model(self.discriminator)
-        models.parameter_averaging.decorate_model(self.generator)
+        #models.parameter_averaging.decorate_model(self.generator)
         self.discriminator_temp_optimizer = optim.SGD([self.discriminator.pre_temperature], lr=1e-1, momentum=0.9)
         if not hasattr(self.generator, 'input_shape'):
             setattr(self.generator, 'input_shape', self.train_dataset.dataset.data_shape)
