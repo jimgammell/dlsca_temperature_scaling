@@ -28,6 +28,9 @@ class DatasetAnalyzer:
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+        if device is None:
+            device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.device = device
         if all(x is not None for x in (train_dataset, val_dataset, test_dataset)):
             self.train_dataset = train_dataset
             self.val_dataset = val_dataset
@@ -61,8 +64,6 @@ class DatasetAnalyzer:
             self.generator.load_state_dict({
                 key: val for key, val in checkpoint['generator_state'].items() if not key.split('__')[0] == 'avg'
             })
-            if device is None:
-                device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
             self.generator = self.generator.to(device)
             self.generator.eval()
         elif generator is not None:
