@@ -64,7 +64,8 @@ class DatasetAnalyzer:
                 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
             self.generator = self.generator.to(device)
             self.generator.eval()
-            def obfuscate_sample(sample):
+        def obfuscate_sample(sample):
+            if hasattr(self, 'generator'):
                 sample = sample.to(device)
                 sample = sample.unsqueeze(0)
                 with torch.no_grad():
@@ -74,10 +75,10 @@ class DatasetAnalyzer:
                 sample = mask*noise + (1-mask)*sample
                 sample = sample.squeeze(0)
                 sample = sample.to('cpu')
-                return sample
-            self.train_dataset.dataset.transform = Compose([self.train_dataset.dataset.transform, Lambda(obfuscate_sample)])
-            self.val_dataset.dataset.transform = Compose([self.val_dataset.dataset.transform, Lambda(obfuscate_sample)])
-            self.test_dataset.transform = Compose([self.test_dataset.transform, Lambda(obfuscate_sample)])
+            return sample
+        self.train_dataset.dataset.transform = Compose([self.train_dataset.dataset.transform, Lambda(obfuscate_sample)])
+        self.val_dataset.dataset.transform = Compose([self.val_dataset.dataset.transform, Lambda(obfuscate_sample)])
+        self.test_dataset.transform = Compose([self.test_dataset.transform, Lambda(obfuscate_sample)])
     
     def compute_trace_offsets(self, dataset, reference_idx=0, max_offset=100, progress_bar=False):
         reference_trace, _ = dataset[reference_idx]
