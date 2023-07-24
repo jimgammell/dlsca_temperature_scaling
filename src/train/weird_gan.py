@@ -18,6 +18,7 @@ import train, train.common
 import datasets, datasets.common, datasets.transforms
 import models, models.common, models.parameter_averaging, models.temperature_scaling
 from datasets.transforms import construct_transform
+from train.analyze_dataset import DatasetAnalyzer
 
 class GANTrainer:
     def __init__(
@@ -180,6 +181,14 @@ class GANTrainer:
                 state_dict = torch.load(model_path, map_location=self.device)
                 self.pretrained_discriminator.load_state_dict(state_dict)
         self.ece_criterion = models.temperature_scaling.ECELoss()
+        self.dataset_analyzer = DatasetAnalyzer(
+            train_dataset=self.train_dataset,
+            val_dataset=self.val_dataset,
+            test_dataset=self.test_dataset,
+            seed=self.seed,
+            device=self.device
+        )
+        self.dataset_analyzer.generator = self.generator
             
     def pert_penalty_fn(self, mask):
         if self.pert_metric == 'l1':
@@ -260,7 +269,10 @@ class GANTrainer:
             perturbation = torch.where(perturbation > 0.0, torch.ones_like(perturbation), torch.zeros_like(perturbation))
         else:
             perturbation = nn.functional.sigmoid(perturbation)
-        noise = torch.randn_like(orig_trace)
+        if posteval:
+            noise = orig_trace.mean() * torch.ones_like(orig_trace)
+        else:
+            noise = torch.randn_like(orig_trace)
         perturbed_trace = perturbation*noise + (1-perturbation)*orig_trace
         if return_mask:
             return perturbed_trace, perturbation
@@ -485,6 +497,11 @@ class GANTrainer:
         else:
             step_fn = self.eval_step
         rv = train.common.run_epoch(dataloader, step_fn, use_progress_bar=False, **kwargs)
+        per_key_means = self.dataset_analyzer.get_per_key_means(dataloader.dataset)
+        sum_of_differences = self.dataset_analyzer.compute_sum_of_differences(dataloader.dataset, per_key_means=per_key_means)
+        snr = self.dataset_analyzer.compute_snr(dataloader.dataset, per_key_means=per_key_means)
+        rv['sum_of_differences'] = {'mean': np.mean(sum_of_differences), 'max': np.max(sum_of_differences)}
+        rv['snr'] = {'mean': np.mean(snr), 'max': np.max(snr)}
         return rv
     
     def train_model(

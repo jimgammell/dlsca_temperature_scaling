@@ -94,43 +94,43 @@ class DCGAN__Generator(nn.Module):
         base_channels=32,
         kernel_size=11,
         num_blocks=3,
-        max_l1sum_out=None
+        max_l1sum_out=None,
+        sample_independent=False
     ):
         super().__init__()
         
-        def get_block(in_channels, out_channels, use_bn=True):
-            modules = [
-                nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size//2),
-                nn.ReLU(inplace=True)
-            ]
-            if use_bn:
-                modules.append(nn.BatchNorm1d(out_channels))
-            return nn.Sequential(*modules)
-        
-        self.input_transform = nn.Sequential(
-            nn.Conv1d(input_shape[0], base_channels, kernel_size=kernel_size, padding=kernel_size//2)
-        )
-        self.trunk = nn.Sequential(*[
-            get_block(base_channels, base_channels) for _ in range(num_blocks)
-        ])
-        self.output_transform = nn.Sequential(
-            nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2)
-        )
-        self.output_scalar = nn.Parameter(torch.tensor(0, dtype=torch.float))
-        self.max_l1sum_out = max_l1sum_out
+        self.sample_independent = sample_independent
+        if sample_independent:
+            self.output = nn.Parameter(torch.zeros(*input_shape, dtype=torch.float))
+        else:
+            def get_block(in_channels, out_channels, use_bn=True):
+                modules = [
+                    nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=kernel_size//2),
+                    nn.ReLU(inplace=True)
+                ]
+                if use_bn:
+                    modules.append(nn.BatchNorm1d(out_channels))
+                return nn.Sequential(*modules)
+
+            self.input_transform = nn.Sequential(
+                nn.Conv1d(input_shape[0], base_channels, kernel_size=kernel_size, padding=kernel_size//2)
+            )
+            self.trunk = nn.Sequential(*[
+                get_block(base_channels, base_channels) for _ in range(num_blocks)
+            ])
+            self.output_transform = nn.Sequential(
+                nn.Conv1d(base_channels, input_shape[0], kernel_size=kernel_size, padding=kernel_size//2)
+            )
+            self.output_scalar = nn.Parameter(torch.tensor(0, dtype=torch.float))
+            self.max_l1sum_out = max_l1sum_out
         
     def forward(self, x):
-        #x_orig = x.clone()
-        x = self.input_transform(x)
-        x = self.trunk(x)
-        x = self.output_transform(x)
-        # Rescale the outputs so that they respect the max_l1sum constraint
-        #if self.max_l1sum_out is not None:
-        #    l1sums = x.abs().sum(dim=-1, keepdims=True)
-        #    rescale_vals = torch.where(l1sums > self.max_l1sum_out, self.max_l1sum_out/l1sums, torch.ones_like(l1sums))
-        #    x = rescale_vals * x
-        
-        #x = self.output_scalar*x
+        if self.sample_independent:
+            return self.output.expand(x.size())
+        else:
+            x = self.input_transform(x)
+            x = self.trunk(x)
+            x = self.output_transform(x)
         return x
     
 class DCGAN__Discriminator(nn.Module):

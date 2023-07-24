@@ -36,7 +36,7 @@
     },
     "train_sample_transforms": [
         "ToFloatTensor",
-        ["Downsample", {"downsample_ratio": 4}],
+        ["Downsample", {"downsample_ratio": 1}],
         ["Standardize", {"mean": -0.2751, "stdev": 0.1296}]
     ],
     "train_target_transforms": [
@@ -44,13 +44,13 @@
     ],
     "eval_sample_transforms": [
         "ToFloatTensor",
-        ["Downsample", {"downsample_ratio": 4}],
+        ["Downsample", {"downsample_ratio": 1}],
         ["Standardize", {"mean": -0.2751, "stdev": 0.1296}]
     ],
     "eval_target_transforms": [
         "ToLongTensor"
     ],
-    "total_epochs": 100,
+    "total_epochs": 25,
     "pretrain_epochs": 5,
     "posttrain_epochs": 25,
     "seed": 0,
@@ -64,7 +64,12 @@
         "method": "random",
         "name": "noise_adder_gan",
         "parameters": {
-            "pert_decay": {"distribution": "log_uniform_values", "min": 0.1, "max": 100.0}
+            "pert_decay": {"distribution": "log_uniform_values", "min": 0.1, "max": 100.0},
+            "generator_kwargs": {
+                "sample_independent": {"values": [false, true]}
+            },
+            "adv_loss": {"values": ["confusion", "negative"]},
+            "cal_temperature": {"values": [false, true]}
         }
     }
 }
