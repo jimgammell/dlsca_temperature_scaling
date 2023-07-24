@@ -18,6 +18,7 @@ class DatasetAnalyzer:
         dataset_name=None, dataset_kwargs={},
         train_dataset=None, val_dataset=None, test_dataset=None,
         trial_dir=None,
+        generator=None,
         seed=None,
         device=None,
         val_split_prop=0.2
@@ -64,22 +65,25 @@ class DatasetAnalyzer:
                 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
             self.generator = self.generator.to(device)
             self.generator.eval()
+        elif generator is not None:
+            self.generator = generator
 
-        self.train_dataset.dataset.transform = Compose([self.train_dataset.dataset.transform, Lambda(self.obfuscate_sample)])
-        self.val_dataset.dataset.transform = Compose([self.val_dataset.dataset.transform, Lambda(self.obfuscate_sample)])
-        self.test_dataset.transform = Compose([self.test_dataset.transform, Lambda(self.obfuscate_sample)])
+        if hasattr(self, 'generator'):
+            self.train_dataset.dataset.transform = Compose([self.train_dataset.dataset.transform, Lambda(self.obfuscate_sample)])
+            self.val_dataset.dataset.transform = Compose([self.val_dataset.dataset.transform, Lambda(self.obfuscate_sample)])
+            self.test_dataset.transform = Compose([self.test_dataset.transform, Lambda(self.obfuscate_sample)])
 
     def obfuscate_sample(self, sample):
-        if hasattr(self, 'generator'):
-            sample = sample.to(device)
-            sample = sample.unsqueeze(0)
-            with torch.no_grad():
-                mask = self.generator(sample)
-            mask = torch.where(mask > 0.0, torch.ones_like(mask), torch.zeros_like(mask))
-            noise = sample.mean() * torch.ones_like(sample)
-            sample = mask*noise + (1-mask)*sample
-            sample = sample.squeeze(0)
-            sample = sample.to('cpu')
+        self.generator.eval()
+        sample = sample.to(device)
+        sample = sample.unsqueeze(0)
+        with torch.no_grad():
+            mask = self.generator(sample)
+        mask = torch.where(mask > 0.0, torch.ones_like(mask), torch.zeros_like(mask))
+        noise = sample.mean() * torch.ones_like(sample)
+        sample = mask*noise + (1-mask)*sample
+        sample = sample.squeeze(0)
+        sample = sample.to('cpu')
         return sample
     
     def compute_trace_offsets(self, dataset, reference_idx=0, max_offset=100, progress_bar=False):
