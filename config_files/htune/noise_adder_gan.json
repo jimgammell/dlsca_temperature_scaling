@@ -1,5 +1,5 @@
 {
-    "wandb_project": "noise_adder_gan__tinyaes__revised2",
+    "wandb_project": "noise_adder_gan__tinyaes__revised3",
     "save_dir": "noise_adder_gan__tinyaes__revised",
     "train_gan": true,
     "dataset_name": "GoogleTinyAES",
