@@ -232,6 +232,8 @@ class GANTrainer:
         self.generator_optimizer.zero_grad(set_to_none=True)
         gen_train_loss.backward()
         self.generator_optimizer.step()
+        if hasattr(self.generator, 'update_avg_buffer'):
+            self.generator.update_avg_buffer()
         
         d_train_logits = self.discriminator(train_traces)
         d_train_loss = nn.functional.cross_entropy(d_train_logits, train_labels)
@@ -394,7 +396,8 @@ class GANTrainer:
             self.generator_optimizer.zero_grad()
             gen_loss.backward()
             self.generator_optimizer.step()
-            self.generator.update_avg_buffer()
+            if hasattr(self.generator, 'update_avg_buffer'):
+                self.generator.update_avg_buffer()
         
         end.record()
         torch.cuda.synchronize()
