@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 
-from datasets import ascadv1, zaid_dpav4, google_tinyaes
+from datasets import ascadv1, zaid_dpav4, google_tinyaes, synthetic
 
 AVAILABLE_DATASETS = sum([
-    ascadv1.AVAILABLE_DATASETS, zaid_dpav4.AVAILABLE_DATASETS, google_tinyaes.AVAILABLE_DATASETS
+    ascadv1.AVAILABLE_DATASETS, zaid_dpav4.AVAILABLE_DATASETS, google_tinyaes.AVAILABLE_DATASETS, synthetic.AVAILABLE_DATASETS
 ], start=[])
 
 def get_dataset_class(dataset_name):

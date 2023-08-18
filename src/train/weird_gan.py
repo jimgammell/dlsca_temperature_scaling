@@ -46,6 +46,7 @@ class GANTrainer:
         seed=None,
         device=None,
         batch_size=32,
+        batches_per_epoch = None,
         val_split_prop=0.2,
         pretrain_epochs=0,
         posttrain_epochs=0,
@@ -475,6 +476,8 @@ class GANTrainer:
         else:
             step_fn = self.train_step
         for bidx, (batch, val_batch) in enumerate(zip(self.train_dataloader, self.cal_dataloader)):
+            if (self.batches_per_epoch is not None) and (bidx >= self.batches_per_epoch):
+                break
             if self.disc_steps_per_gen_step > 1:
                 disc_steps += 1
                 train_disc = True
@@ -499,7 +502,9 @@ class GANTrainer:
             step_fn = self.posteval_step
         else:
             step_fn = self.eval_step
-        rv = train.common.run_epoch(dataloader, step_fn, use_progress_bar=False, **kwargs)
+        rv = train.common.run_epoch(
+            dataloader, step_fn, use_progress_bar=False, stop_at_batch=self.batches_per_epoch, **kwargs
+        )
         per_key_means = self.dataset_analyzer.get_per_key_means(dataloader.dataset)
         sum_of_differences = self.dataset_analyzer.compute_sum_of_differences(dataloader.dataset, per_key_means=per_key_means)
         snr = self.dataset_analyzer.compute_snr(dataloader.dataset, per_key_means=per_key_means)

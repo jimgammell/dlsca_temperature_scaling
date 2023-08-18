@@ -1,0 +1,62 @@
+{
+    "wandb_project": "fixed_mask",
+    "save_dir": "fixed_mask",
+    "train_gan": true,
+    "dataset_name": "SyntheticAES",
+    "dataset_kwargs": {
+        "num_samples": 128,
+        "fixed_noise_stdev": 1.0,
+        "noise_momentum": 0.0,
+        "mean_bit_consumption": 0.1,
+        "stdev_bit_consumption": 0.1
+    },
+    "discriminator_name": "VGGClassifier",
+    "discriminator_kwargs": {},
+    "generator_name": "FixedMask",
+    "generator_kwargs": {},
+    "classifier_name": "VGGClassifier",
+    "classifier_kwargs": {},
+    "discriminator_optimizer_class": "Adam",
+    "discriminator_optimizer_kwargs": {
+        "lr": 1e-4
+    },
+    "generator_optimizer_class": "Adam",
+    "generator_optimizer_kwargs": {
+        "lr": 1e-4
+    },
+    "classifier_optimizer_class": "Adam",
+    "classifier_optimizer_kwargs": {
+        "lr": 2e-4
+    },
+    "train_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "eval_sample_transforms": [
+        "ToFloatTensor"
+    ],
+    "train_target_transforms": [
+        "ToLongTensor"
+    ],
+    "eval_target_transforms": [
+        "ToLongTensor"
+    ],
+    "batches_per_epoch": 1000,
+    "num_epochs": 10,
+    "batch_size": 1024,
+    "val_split_prop": null,
+    "disc_steps_per_gen_step": 1.0,
+    "pert_metric": "l1",
+    "cal_temperature": false,
+    "wandb_config": {
+        "method": "grid",
+        "name": "fixed_mask",
+        "parameters": {
+            "pert_decay": {"values": [1e-2, 1e-1, 1e0, 1e1, 1e2]},
+            "seed": {"values": [0, 1, 2, 3, 4]},
+            "dataset_kwargs": {
+                "num_leaking_samples": {"values": [0, 1, 2, 4, 8, 16, 32, 64]},
+                "varying_noise_stdev": {"values": [0.01, 0.05, 0.1, 0.5, 1.0]}
+            }
+        }
+    }
+}
